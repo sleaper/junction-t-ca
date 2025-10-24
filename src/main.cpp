@@ -9,15 +9,11 @@
 #include <vector>
 
 #include "CImg.h"
+#include "Car.h"
+#include "Lane.h"
 
 using namespace cimg_library;
 
-const uint8_t CAR_COLOR[] = {0, 0, 255};
-const uint8_t NORTH_ROAD[] = {255, 255, 255};
-const uint8_t MIDDLE_ROAD[] = {150, 150, 150};
-const uint8_t SOUTH_ROAD[] = {200, 200, 200};
-const uint8_t WEST_ROAD[] = {100, 100, 100};
-const uint8_t EAST_ROAD[] = {0, 255, 0};
 const uint8_t INTERSECTION_COLOR[] = {255, 0, 0};
 
 const int MAIN_LANE_LENGTH = 100;  // in cells
@@ -37,117 +33,6 @@ const double FLOW_RATE_MAJOR = 0.684;
 const double FLOW_RATE_MINOR = 0.2;
 
 const int CAR_SPAWN_DISTANCE = 1;  // Minimum cells gap before spawning
-
-enum class Direction { WEST, EAST, NORTH, SOUTH };
-enum class LaneType { THROUGH, TURN, MIXED };
-
-struct Lane;
-struct Car;
-class IntersectionManager;
-
-struct Car {
-    int speed = 0;
-    size_t pos = 0;
-    Direction direction;
-    float aggression = 0.0;
-    Lane* lane = nullptr;
-    bool wants_to_turn = false;
-    size_t id;
-
-    Car(Direction dest, float aggr, Lane* lane, size_t id)
-        : direction(dest), aggression(aggr), lane(lane), id(id) {
-        speed = static_cast<int>(rand() % VMAX) + 1;
-    }
-
-    void draw(CImg<unsigned char>& img) const {
-        auto [x, y] = lane->get_position(pos);
-        img.draw_point(x, y, CAR_COLOR, 1);
-    }
-};
-
-struct Lane {
-    Direction dir;
-    LaneType type;
-    std::vector<Car*> cars;
-    int len_cels;
-    std::string id;
-    int start_x, start_y;
-    bool is_vertical;
-
-    Lane(Direction dir, LaneType type, int len_cels, std::string id,
-         int start_x, int start_y, bool is_vertical)
-        : dir(dir),
-          type(type),
-          len_cels(len_cels),
-          id(id),
-          start_x(start_x),
-          start_y(start_y),
-          is_vertical(is_vertical) {}
-
-    std::pair<int, int> get_direction_vector() const {
-        switch (dir) {
-            case Direction::WEST:
-                return {-1, 0};
-            case Direction::EAST:
-                return {1, 0};
-            case Direction::NORTH:
-                return {0, -1};
-            case Direction::SOUTH:
-                return {0, 1};
-            default:
-                throw std::invalid_argument("Invalid direction");
-        }
-    }
-
-    /**
-     * @brief Get the position of the cell on the lane
-     * @param pos The position of the cell on the lane, 0 means the start of the
-     * line, len_cels means the end of the line
-     * @return The position of the cell in pixels
-     */
-    std::pair<int, int> get_position(size_t pos) const {
-        auto [dx, dy] = get_direction_vector();
-        return {start_x + dx * static_cast<int>(pos),
-                start_y + dy * static_cast<int>(pos)};
-    }
-
-    inline const uint8_t* get_road_color() const {
-        switch (dir) {
-            case Direction::WEST:
-                return WEST_ROAD;
-            case Direction::NORTH:
-                return NORTH_ROAD;
-            case Direction::EAST:
-                return EAST_ROAD;
-            case Direction::SOUTH:
-                return SOUTH_ROAD;
-            default:
-                throw std::invalid_argument("Invalid direction");
-        }
-    }
-
-    int distance_to_next_car(size_t car_index) const {
-        if (car_index >= cars.size() - 1) {
-            return -1;
-        } else {
-            return static_cast<int>(cars.at(car_index + 1)->pos -
-                                    cars.at(car_index)->pos - 1);
-        }
-    }
-
-    Car* find_car_at_pos(size_t pos) const {
-        for (auto& car : cars) {
-            if (car->pos == pos) return car;
-        }
-        return nullptr;
-    }
-
-    void draw(CImg<unsigned char>& img) const {
-        auto [x1, y1] = get_position(0);
-        auto [x2, y2] = get_position(len_cels);
-        img.draw_line(x1, y1, x2, y2, get_road_color(), 1);
-    }
-};
 
 class IntersectionManager {
    public:
