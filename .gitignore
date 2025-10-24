@@ -7,7 +7,7 @@ Dockerfile
 .clang-uml
 /latex
 *.pyc
-dns
+ca
 *.d
 
 build/

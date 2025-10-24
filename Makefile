@@ -3,6 +3,7 @@ CC=g++
 CXXFLAGS=-I$(IDIR) -std=c++20 -MMD -MP
 DFLAGS=
 LDFLAGS=-lX11
+CXXFLAGS_DEBUG=-isystem $(IDIR) -std=c++20 -MMD -MP # Suppress warnings from CImg library
 
 IDIR=./include
 SRC_DIR=./src
@@ -33,6 +34,7 @@ run: ca
 	./ca
 
 debug: DFLAGS += -g -DDEBUG_PRINT -Wconversion -Wall -Wextra -Werror
+debug: CXXFLAGS = $(CXXFLAGS_DEBUG)
 debug: ca
 
 clean:
