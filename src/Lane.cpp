@@ -36,6 +36,10 @@ std::pair<int, int> Lane::get_direction_vector() const {
     }
 }
 
+/*
+ * Translates a position in the lane vector into (x) coordinates on the screen
+ * (x, y).
+ */
 std::pair<int, int> Lane::get_position(size_t pos) const {
     auto [dx, dy] = get_direction_vector();
     return {start_x + dx * static_cast<int>(pos),

@@ -22,7 +22,7 @@ struct Lane {
     Direction dir;
     LaneType type;
     std::vector<Car*> cars;
-    int len_cels;
+    size_t len_cels;
     std::string id;
     int start_x, start_y;
     bool is_vertical;

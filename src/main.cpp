@@ -24,7 +24,7 @@ const int SCREEN_CELLS_X = 100;  // 750 / 100 = 7.5m per cell
 const int SCREEN_CELLS_Y = 100;
 
 constexpr double CELL_LENGTH_M = 7.5;
-const int CELL_SIZE = 10;  // in pixels
+const int CELL_SIZE = 20;  // in pixels
 
 const int DELTA = 1;  // 1 second of model time per step
 const int VMAX = 9;
@@ -113,19 +113,75 @@ void draw(CImg<unsigned char>& img) {
     }
 }
 
-// void sim_step() {
-//     spawn_cars();
+void spawn_cars() {
+    for (auto& lane : g_lanes) {
+        double flow_rate = (lane->type == LaneType::THROUGH) ? FLOW_RATE_MAJOR
+                                                             : FLOW_RATE_MINOR;
 
-//     for (auto& car : g_cars) {
-//         attempt_lane_change(car.get());
-//     }
+        if (static_cast<double>(rand()) / RAND_MAX < flow_rate) {
+            if (lane->find_car_at_pos(0) == nullptr) {
+                float aggression = static_cast<float>(rand()) /
+                                   RAND_MAX;  // TODO: come up with some
+                                              // aggression distribution
+                auto car = std::make_unique<Car>(lane->dir, aggression,
+                                                 lane.get(), next_car_id++);
+                lane->cars.push_back(car.get());
+                g_cars.push_back(std::move(car));
+            }
+        }
+    }
+}
 
-//     for (auto& lane : g_lanes) {
-//         apply_nash_rules(lane.get());
-//     }
+void apply_nash_rules(Lane* lane) {
+    for (auto& car : lane->cars) {
+        // R1: Acceleration
+        if (car->speed < VMAX) {
+            car->speed += 1;
+        }
 
-//     remove_out_of_bounds_cars();
-// }
+        // R2: Deceleration due to other cars
+        int distance = lane->distance_to_next_car(car->id);
+        if (distance != -1) car->speed = std::min(car->speed, distance);
+
+        // R3: Randomization
+        if (rand() % 2 == 1) car->speed = std::max(0, car->speed - 1);
+
+        // R4: Movement
+        car->pos += car->speed;
+    }
+}
+
+void remove_out_of_bounds_cars() {
+    g_cars.erase(
+        std::remove_if(g_cars.begin(), g_cars.end(),
+                       [](const std::unique_ptr<Car>& car) {
+                           if (car->pos >= car->lane->len_cels) {
+                               // Also remove from lane
+                               auto& lane_cars = car->lane->cars;
+                               lane_cars.erase(
+                                   std::remove(lane_cars.begin(),
+                                               lane_cars.end(), car.get()),
+                                   lane_cars.end());
+                               return true;
+                           }
+                           return false;
+                       }),
+        g_cars.end());
+}
+
+void sim_step() {
+    spawn_cars();
+
+    // for (auto& car : g_cars) {
+    //     attempt_lane_change(car.get());
+    // }
+
+    for (auto& lane : g_lanes) {
+        apply_nash_rules(lane.get());
+    }
+
+    remove_out_of_bounds_cars();
+}
 
 int main() {
     init_lanes();
@@ -143,7 +199,7 @@ int main() {
     if (visualize) win = CImgDisplay(WIN_W, WIN_H, "Simulation grid");
 
     for (unsigned long mt = 0; mt < 10000; mt += DELTA) {
-        // sim_step();
+        sim_step();
 
         if (visualize) {
             draw(grid);
