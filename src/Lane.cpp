@@ -6,10 +6,10 @@
 
 // Road color constants
 const uint8_t NORTH_ROAD[] = {255, 255, 255};
-const uint8_t MIDDLE_ROAD[] = {150, 150, 150};
 const uint8_t SOUTH_ROAD[] = {200, 200, 200};
 const uint8_t WEST_ROAD[] = {100, 100, 100};
 const uint8_t EAST_ROAD[] = {0, 255, 0};
+const uint8_t INTERSECTION_COLOR[] = {255, 0, 0};
 
 Lane::Lane(Direction dir, LaneType type, int len_cels, std::string id,
            int start_x, int start_y, bool is_vertical)
@@ -31,6 +31,8 @@ std::pair<int, int> Lane::get_direction_vector() const {
             return {0, -1};
         case Direction::SOUTH:
             return {0, 1};
+        case Direction::ANY:
+            return {1, 1};
         default:
             throw std::invalid_argument("Invalid direction");
     }
@@ -56,6 +58,8 @@ const uint8_t* Lane::get_road_color() const {
             return EAST_ROAD;
         case Direction::SOUTH:
             return SOUTH_ROAD;
+        case Direction::ANY:
+            return INTERSECTION_COLOR;
         default:
             throw std::invalid_argument("Invalid direction");
     }

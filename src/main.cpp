@@ -31,6 +31,7 @@ const int VMAX = 9;
 
 const double FLOW_RATE_MAJOR = 0.684;
 const double FLOW_RATE_MINOR = 0.2;
+const double MAIN_TURN_RATE = 0.2;
 
 const int CAR_SPAWN_DISTANCE = 1;  // Minimum cells gap before spawning
 
@@ -85,11 +86,16 @@ void init_lanes() {
                                         MINOR_LANE_LENGTH, "south", x_mid - 1,
                                         y_mid + major_lane_offset, true);
 
+    auto intersection_lane =
+        std::make_unique<Lane>(Direction::ANY, LaneType::TURN, 0,
+                               "intersection", x_mid, y_mid + 1, false);
+
     add_lane_to_system(std::move(west));
     add_lane_to_system(std::move(slip));
     add_lane_to_system(std::move(east));
     add_lane_to_system(std::move(north));
     add_lane_to_system(std::move(south));
+    add_lane_to_system(std::move(intersection_lane));
 }
 
 void draw(CImg<unsigned char>& img) {
@@ -99,18 +105,21 @@ void draw(CImg<unsigned char>& img) {
         lane->draw(img);
     }
 
-    // Draw intersection TODO: Maybe put into IntersectionManager ??
-    for (int dx = 0; dx < 2; dx++) {
-        for (int dy = 0; dy < 3; dy++) {
-            int x = SCREEN_CELLS_X / 2 + dx - 1;
-            int y = SCREEN_CELLS_Y / 2 + dy;
-            img.draw_point(x, y, INTERSECTION_COLOR, 1);
-        }
-    }
-
     for (auto& car : g_cars) {
         car->draw(img);
     }
+}
+
+void spawn_one_car(Lane* lane) {
+    bool wants_to_turn = true;
+
+    float aggression = static_cast<float>(rand()) / RAND_MAX;
+
+    auto car = std::make_unique<Car>(lane->dir, aggression, lane, wants_to_turn,
+                                     next_car_id++);
+
+    lane->cars.insert(lane->cars.begin(), car.get());
+    g_cars.insert(g_cars.begin(), std::move(car));
 }
 
 void spawn_cars() {
@@ -120,27 +129,32 @@ void spawn_cars() {
 
         if (static_cast<double>(rand()) / RAND_MAX < flow_rate) {
             if (lane->find_car_at_pos(0) == nullptr) {
+                bool wants_to_turn = false;
+
                 float aggression = static_cast<float>(rand()) /
                                    RAND_MAX;  // TODO: come up with some
                                               // aggression distribution
-                auto car = std::make_unique<Car>(lane->dir, aggression,
-                                                 lane.get(), next_car_id++);
-                lane->cars.push_back(car.get());
-                g_cars.push_back(std::move(car));
+                auto car =
+                    std::make_unique<Car>(lane->dir, aggression, lane.get(),
+                                          wants_to_turn, next_car_id++);
+                lane->cars.insert(lane->cars.begin(), car.get());
+                g_cars.insert(g_cars.begin(), std::move(car));
             }
         }
     }
 }
 
 void apply_nash_rules(Lane* lane) {
-    for (auto& car : lane->cars) {
+    for (size_t i = 0; i < lane->cars.size(); i++) {
+        Car* car = lane->cars.at(i);
+
         // R1: Acceleration
         if (car->speed < VMAX) {
             car->speed += 1;
         }
 
         // R2: Deceleration due to other cars
-        int distance = lane->distance_to_next_car(car->id);
+        int distance = lane->distance_to_next_car(i);
         if (distance != -1) car->speed = std::min(car->speed, distance);
 
         // R3: Randomization
@@ -169,8 +183,9 @@ void remove_out_of_bounds_cars() {
         g_cars.end());
 }
 
-void sim_step() {
-    spawn_cars();
+void sim_step(unsigned long mt) {
+    // spawn_cars();
+    if (mt == 0) spawn_one_car(g_lanes.at(0).get());
 
     // for (auto& car : g_cars) {
     //     attempt_lane_change(car.get());
@@ -199,12 +214,18 @@ int main() {
     if (visualize) win = CImgDisplay(WIN_W, WIN_H, "Simulation grid");
 
     for (unsigned long mt = 0; mt < 10000; mt += DELTA) {
-        sim_step();
+        sim_step(mt);
 
         if (visualize) {
             draw(grid);
             CImg<unsigned char> zoomed =
                 grid.get_resize(WIN_W, WIN_H, -100, -100, 1);
+
+            std::string iter_text = "Step: " + std::to_string(mt);
+            const unsigned char white[] = {255, 255, 255};
+            zoomed.draw_text(WIN_W - 200, 10, iter_text.c_str(), white, 0, 1,
+                             24);
+
             win.display(zoomed);
 
             if (win.is_closed()) break;

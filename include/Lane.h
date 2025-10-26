@@ -13,7 +13,7 @@ using namespace cimg_library;
 // External constants
 extern const int VMAX;
 
-enum class Direction { WEST, EAST, NORTH, SOUTH };
+enum class Direction { WEST, EAST, NORTH, SOUTH, ANY };
 enum class LaneType { THROUGH, TURN, MIXED };
 
 struct Car;  // Forward declaration

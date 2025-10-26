@@ -17,7 +17,7 @@ struct Car {
     bool wants_to_turn = false;
     size_t id;
 
-    Car(Direction dest, float aggr, Lane* lane, size_t id);
+    Car(Direction dest, float aggr, Lane* lane, bool wants_to_turn, size_t id);
 
     void draw(CImg<unsigned char>& img) const;
 };
