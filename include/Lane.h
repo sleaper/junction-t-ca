@@ -10,25 +10,20 @@
 
 using namespace cimg_library;
 
-// External constants
 extern const int VMAX;
 
-enum class Direction { WEST, EAST, NORTH, SOUTH, ANY };
-enum class LaneType { THROUGH, TURN, MIXED };
+enum class Direction { WEST, EAST, NORTH, SOUTH, INTERSECTION };
 
-struct Car;  // Forward declaration
+struct Car;
 
 struct Lane {
     Direction dir;
-    LaneType type;
     std::vector<Car*> cars;
     size_t len_cels;
     std::string id;
     int start_x, start_y;
-    bool is_vertical;
 
-    Lane(Direction dir, LaneType type, int len_cels, std::string id,
-         int start_x, int start_y, bool is_vertical);
+    Lane(Direction dir, int len_cels, std::string id, int start_x, int start_y);
 
     std::pair<int, int> get_direction_vector() const;
     std::pair<int, int> get_position(size_t pos) const;

@@ -11,15 +11,13 @@ const uint8_t WEST_ROAD[] = {100, 100, 100};
 const uint8_t EAST_ROAD[] = {0, 255, 0};
 const uint8_t INTERSECTION_COLOR[] = {255, 0, 0};
 
-Lane::Lane(Direction dir, LaneType type, int len_cels, std::string id,
-           int start_x, int start_y, bool is_vertical)
+Lane::Lane(Direction dir, int len_cels, std::string id, int start_x,
+           int start_y)
     : dir(dir),
-      type(type),
       len_cels(len_cels),
       id(id),
       start_x(start_x),
-      start_y(start_y),
-      is_vertical(is_vertical) {}
+      start_y(start_y) {}
 
 std::pair<int, int> Lane::get_direction_vector() const {
     switch (dir) {
@@ -31,8 +29,8 @@ std::pair<int, int> Lane::get_direction_vector() const {
             return {0, -1};
         case Direction::SOUTH:
             return {0, 1};
-        case Direction::ANY:
-            return {1, 1};
+        case Direction::INTERSECTION:
+            return {0, 0};
         default:
             throw std::invalid_argument("Invalid direction");
     }
@@ -58,7 +56,7 @@ const uint8_t* Lane::get_road_color() const {
             return EAST_ROAD;
         case Direction::SOUTH:
             return SOUTH_ROAD;
-        case Direction::ANY:
+        case Direction::INTERSECTION:
             return INTERSECTION_COLOR;
         default:
             throw std::invalid_argument("Invalid direction");
