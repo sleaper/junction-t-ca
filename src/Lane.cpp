@@ -41,15 +41,29 @@ std::pair<int, int> Lane::get_position(size_t pos) const {
             start_y + dy * static_cast<int>(pos)};
 }
 
-const uint8_t* Lane::get_road_color() const { return ROAD_COLOR; }
-
-int Lane::distance_to_next_car(size_t car_index) const {
-    if (car_index >= cars.size() - 1) {
+int Lane::front_gap(size_t car_index) const {
+    if (car_index + 1 >= cars.size()) {
         return -1;
     } else {
-        return static_cast<int>(cars.at(car_index + 1)->pos -
-                                cars.at(car_index)->pos - 1);
+        return cars[car_index + 1]->pos - cars[car_index]->pos -
+               CAR_LENGTH_CELLS;
     }
+}
+
+int Lane::back_gap(size_t car_index) const {
+    if (car_index == 0) {
+        return -1;
+    } else {
+        return cars[car_index]->pos - cars[car_index - 1]->pos -
+               CAR_LENGTH_CELLS;
+    }
+}
+
+void Lane::insert_car(Car* car) {
+    auto it = std::lower_bound(
+        cars.begin(), cars.end(), car,
+        [](const Car* a, const Car* b) { return a->pos < b->pos; });
+    cars.insert(it, car);
 }
 
 Car* Lane::find_car_at_pos(size_t pos) const {
@@ -62,5 +76,9 @@ Car* Lane::find_car_at_pos(size_t pos) const {
 void Lane::draw(CImg<unsigned char>& img) const {
     auto [x1, y1] = get_position(0);
     auto [x2, y2] = get_position(len_cels);
-    img.draw_line(x1, y1, x2, y2, get_road_color(), 1);
+    img.draw_line(x1, y1, x2, y2, ROAD_COLOR, 1);
+
+    for (const& auto car : cars) {
+        car->draw(img);
+    }
 }

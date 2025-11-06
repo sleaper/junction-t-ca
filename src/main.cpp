@@ -18,11 +18,10 @@ using namespace cimg_library;
 
 const int SCREEN_CELLS_X = 1000;
 const int SCREEN_CELLS_Y = 1000;
+const int CELL_PIXELS = 10;  // in pixels
 
-const int CELL_SIZE = 10;  // in pixels
-
-const int DELTA = 1;                // 1 second of model time per step
-const int MAIN_LANE_LENGTH = 1000;  // in cells
+const int DELTA = 1;                 // 1 second of model time per step
+const int MAIN_LANE_LENGTH = 10000;  // in cells
 const int VMAX = 60;
 
 const double SLOW_TO_START_PROB = 0.5;  // q
@@ -32,7 +31,7 @@ const int CAR_SPAWN_DISTANCE = 1;  // Minimum cells gap before spawning
 
 // Global state
 std::vector<std::unique_ptr<Lane>> g_lanes;
-std::vector<std::unique_ptr<Car>> g_cars;  // Keep cars alive
+std::vector<std::unique_ptr<Car>> g_cars;
 size_t next_car_id = 0;
 
 void init_lanes() {
@@ -53,25 +52,10 @@ void draw(CImg<unsigned char>& img) {
     for (auto& lane : g_lanes) {
         lane->draw(img);
     }
-
-    for (auto& car : g_cars) {
-        car->draw(img);
-    }
 }
 
-void spawn_one_car(Lane* lane) {
-    // TODO: Placeholders for now
-    int lead_distance = rand() % 3;
-    int lag_distance = rand() % 3;
-
-    auto car = std::make_unique<Car>(lane->dir, lane, next_car_id++);
-
-    lane->cars.insert(lane->cars.begin(), car.get());
-    g_cars.push_back(std::move(car));  // Keep the car alive
-}
-
-// TODO: Broken
 void spawn_cars() {
+    // TODO: Random configuration on the road
     // TODO: Spawn car based on flow rate and choose lead and lag distance based
     // on aggression
     for (auto& lane : g_lanes) {
@@ -79,52 +63,84 @@ void spawn_cars() {
     }
 }
 
+Lane* get_other_lane(Lane* lane) {
+    for (auto& l : g_lanes) {
+        if (l.get() != lane) return l.get();
+    }
+    return nullptr;
+}
+
+void switch_lane(Car* car, Lane* from_lane, Lane* to_lane) {
+    auto& from_cars = from_lane->cars;
+
+    std::remove_if(from_cars.begin(), from_cars.end(),
+                   [car](const Car* c) { return c == car; });
+
+    car->lane = to_lane;
+    // TODO:
+}
+
 void apply_nash_rules(Lane* lane) {
     for (size_t i = 0; i < lane->cars.size(); i++) {
-        Car* car = lane->cars.at(i);
+        Car* car = lane->cars.at(i).get();
 
-        // R0: slow-to-start
-
-        // R1: Acceleration
-        if (car->speed < VMAX) {
-            car->speed += 1;
+        // R1: slow-to-start
+        if (car->speed == 0) {
+            if (car->prev_front_dist == 0) {
+                // With probability q, stay stopped
+                if ((rand() % 100) < (SLOW_TO_START_PROB * 100)) {
+                    continue;
+                }
+            }
         }
 
-        // R2: Deceleration due to other cars
-        int distance = lane->distance_to_next_car(i);
-        if (distance != -1) car->speed = std::min(car->speed, distance);
+        // R2: Acceleration
+        int accel_speed = std::min(car->speed + car->get_accel(), VMAX);
 
-        // R3: Randomization
-        if (rand() % 2 == 1) car->speed = std::max(0, car->speed - 1);
+        // R3: Deceleration due to other cars
+        // TODO: Handle no car ahead
+        int front_dist = lane->front_gap(i);
+        int decel_speed = std::min(accel_speed, front_dist);
 
-        // R4: Lane change
-        // R4a: incentive + improvement
-        // R4b: safety check
-        // R4c: opportunity
+        // R4: Randomization
+        int rand_speed = decel_speed;
+        if ((rand() % 100) < (RANDOMIZATION_PROB * 100))
+            rand_speed = std::max(0, decel_speed - 1);
 
-        // R5: Movement
-        car->pos += car->speed;
+        // R5: Movement or Lane change
+        Lane* other_lane = get_other_lane(lane);
+        if (other_lane) {
+            bool incentive = front_dist < min(accel_speed, VMAX);
+
+            bool improvement =
+                other_lane->front_gap(other_lane->find_car_at_pos(car->pos)) >
+                front_dist;
+
+            bool safety = other_lane->back_gap(
+                              other_lane->find_car_at_pos(car->pos)) > VMAX;
+
+            if (incentive && improvement && safety) {
+                // TODO: Change lane
+            }
+        }
+
+        car->speed = rand_speed;
     }
 }
 
 void remove_out_of_bounds_cars() {
     for (auto& lane : g_lanes) {
-        lane->cars.erase(
-            std::remove_if(
-                lane->cars.begin(), lane->cars.end(),
-                [](const Car* car) { return car->pos >= car->lane->len_cels; }),
-            lane->cars.end());
+        lane->cars.erase(std::remove_if(lane->cars.begin(), lane->cars.end(),
+                                        [](const std::unique_ptr<Car>& car) {
+                                            return car->pos >=
+                                                   car->lane->len_cels;
+                                        }),
+                         lane->cars.end());
     }
-    g_cars.erase(std::remove_if(g_cars.begin(), g_cars.end(),
-                                [](const std::unique_ptr<Car>& car) {
-                                    return car->pos >= car->lane->len_cels;
-                                }),
-                 g_cars.end());
 }
 
 void sim_step(unsigned long mt) {
-    // spawn_cars();
-    if (mt == 0) spawn_one_car(g_lanes.at(0).get());
+    spawn_cars();
 
     for (auto& lane : g_lanes) {
         apply_nash_rules(lane.get());
@@ -138,10 +154,10 @@ int main() {
 
     srand(static_cast<unsigned int>(time(nullptr)));
 
-    bool visualize = true;
+    bool visualize = false;
 
-    const int WIN_W = SCREEN_CELLS_X * CELL_SIZE;
-    const int WIN_H = SCREEN_CELLS_Y * CELL_SIZE;
+    const int WIN_W = SCREEN_CELLS_X * CELL_PIXELS;
+    const int WIN_H = SCREEN_CELLS_Y * CELL_PIXELS;
     CImg<unsigned char> grid(SCREEN_CELLS_X, SCREEN_CELLS_Y, 1, 3, 0);
 
     CImgDisplay win;

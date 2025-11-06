@@ -26,15 +26,15 @@ struct Lane {
 
     Lane(Direction dir, int len_cels, std::string id, int start_x, int start_y);
 
-    int measure_front_gap(size_t car_index) const;
-    int measure_back_gap(size_t car_index) const;
-    int measure_target_front_gap(size_t car_index) const;
-    int measure_target_back_gap(size_t car_index) const;
+    void insert_car(Car* car);
+
+    int front_gap(size_t car_index) const;
+    int back_gap(size_t car_index) const;
+    int target_front_gap(size_t car_index) const;
+    int target_back_gap(size_t car_index) const;
 
     std::pair<int, int> get_direction_vector() const;
     std::pair<int, int> get_position(size_t pos) const;
-    const uint8_t* get_road_color() const;
-    int distance_to_next_car(size_t car_index) const;
     Car* find_car_at_pos(size_t pos) const;
     void draw(CImg<unsigned char>& img) const;
 };

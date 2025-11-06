@@ -2,7 +2,6 @@
 #define CAR_H
 
 #include <cstddef>
-#include <random>
 
 #include "CImg.h"
 #include "Lane.h"
@@ -10,6 +9,7 @@
 using namespace cimg_library;
 
 const int CAR_LENGTH_CELLS = 12;
+constexpr double CELL_LENGTH_M = 0.5;
 
 struct Car {
     int speed = 0;
@@ -18,15 +18,10 @@ struct Car {
     Lane* lane = nullptr;
     size_t id;
 
-    double critical_gap_front;
-    double critical_gap_back;
-
-    static std::mt19937 rng;
-    static std::lognormal_distribution<double> gap_dist;
+    int prev_front_dist;
+    int prev_back_dist;
 
     Car(Direction dir, Lane* lane, size_t id);
-
-    void sample_critical_grap();
 
     int get_accel() const;
 
