@@ -14,88 +14,37 @@
 
 using namespace cimg_library;
 
-const uint8_t INTERSECTION_COLOR[] = {255, 0, 0};
+// TODO: for visualisation purposes
 
-const int MAIN_LANE_LENGTH = 100;  // in cells
-const int MINOR_LANE_LENGTH = 18;
-const int SLIP_LANE_LENGTH = 17;
+const int SCREEN_CELLS_X = 1000;
+const int SCREEN_CELLS_Y = 1000;
 
-const int SCREEN_CELLS_X = 100;  // 750 / 100 = 7.5m per cell
-const int SCREEN_CELLS_Y = 100;
+const int CELL_SIZE = 10;  // in pixels
 
-constexpr double CELL_LENGTH_M = 7.5;
-const int CELL_SIZE = 20;  // in pixels
+const int DELTA = 1;                // 1 second of model time per step
+const int MAIN_LANE_LENGTH = 1000;  // in cells
+const int VMAX = 60;
 
-const int DELTA = 1;  // 1 second of model time per step
-const int VMAX = 9;
-
-const double FLOW_RATE_MAJOR = 0.684;
-const double FLOW_RATE_MINOR = 0.2;
-const double MAIN_TURN_RATE = 0.2;
+const double SLOW_TO_START_PROB = 0.5;  // q
+const double RANDOMIZATION_PROB = 0.1;  // p
 
 const int CAR_SPAWN_DISTANCE = 1;  // Minimum cells gap before spawning
 
-class IntersectionManager {
-   public:
-    std::vector<Lane*> lanes;
-
-    IntersectionManager() {}
-
-    void add_lane(Lane* lane) { lanes.push_back(lane); }
-
-   private:
-};
-
 // Global state
 std::vector<std::unique_ptr<Lane>> g_lanes;
-std::vector<std::unique_ptr<Car>> g_cars;
-IntersectionManager intersection_manager;
+std::vector<std::unique_ptr<Car>> g_cars;  // Keep cars alive
 size_t next_car_id = 0;
-
-void add_lane_to_system(std::unique_ptr<Lane> lane) {
-    intersection_manager.add_lane(lane.get());
-    g_lanes.push_back(std::move(lane));
-}
 
 void init_lanes() {
     int y_mid = SCREEN_CELLS_Y / 2;
-    int x_mid = SCREEN_CELLS_X / 2;
-    int y_last = SCREEN_CELLS_Y - 1;
-    int x_last = SCREEN_CELLS_X - 1;
-    int major_lane_offset = 3;
-    int slip_lane_offset = 1;
 
-    // Major lanes
-    auto west =
-        std::make_unique<Lane>(Direction::WEST, LaneType::THROUGH,
-                               MAIN_LANE_LENGTH, "west", x_last, y_mid, false);
+    auto a_lane = std::make_unique<Lane>(Direction::EAST, MAIN_LANE_LENGTH, "a",
+                                         0, y_mid);
+    auto b_lane = std::make_unique<Lane>(Direction::EAST, MAIN_LANE_LENGTH, "b",
+                                         0, y_mid + 1);
 
-    auto slip = std::make_unique<Lane>(
-        Direction::WEST, LaneType::TURN, SLIP_LANE_LENGTH, "slip",
-        x_mid + SLIP_LANE_LENGTH + 1, y_mid + slip_lane_offset, false);
-
-    auto east =
-        std::make_unique<Lane>(Direction::EAST, LaneType::THROUGH,
-                               MAIN_LANE_LENGTH, "east", 0, y_mid + 2, false);
-
-    auto north = std::make_unique<Lane>(
-        Direction::NORTH, LaneType::THROUGH, MINOR_LANE_LENGTH, "north", x_mid,
-        y_mid + MINOR_LANE_LENGTH + major_lane_offset, true);
-
-    auto south = std::make_unique<Lane>(Direction::SOUTH, LaneType::THROUGH,
-                                        MINOR_LANE_LENGTH, "south", x_mid - 1,
-                                        y_mid + major_lane_offset, true);
-
-    auto intersection_lane =
-        std::make_unique<Lane>(Direction::ANY, LaneType::TURN, 0,
-                               "intersection", x_mid, y_mid + 1, false);
-
-    add_lane_to_system(std::move(west));
-    add_lane_to_system(std::move(slip));
-    add_lane_to_system(std::move(east));
-    add_lane_to_system(std::move(north));
-    add_lane_to_system(std::move(south));
-    add_lane_to_system(std::move(intersection_lane));
+    g_lanes.push_back(std::move(a_lane));
+    g_lanes.push_back(std::move(b_lane));
 }
 
 void draw(CImg<unsigned char>& img) {
@@ -111,42 +60,30 @@ void draw(CImg<unsigned char>& img) {
 }
 
 void spawn_one_car(Lane* lane) {
-    bool wants_to_turn = true;
+    // TODO: Placeholders for now
+    int lead_distance = rand() % 3;
+    int lag_distance = rand() % 3;
 
-    float aggression = static_cast<float>(rand()) / RAND_MAX;
-
-    auto car = std::make_unique<Car>(lane->dir, aggression, lane, wants_to_turn,
-                                     next_car_id++);
+    auto car = std::make_unique<Car>(lane->dir, lane, next_car_id++);
 
     lane->cars.insert(lane->cars.begin(), car.get());
-    g_cars.insert(g_cars.begin(), std::move(car));
+    g_cars.push_back(std::move(car));  // Keep the car alive
 }
 
+// TODO: Broken
 void spawn_cars() {
+    // TODO: Spawn car based on flow rate and choose lead and lag distance based
+    // on aggression
     for (auto& lane : g_lanes) {
-        double flow_rate = (lane->type == LaneType::THROUGH) ? FLOW_RATE_MAJOR
-                                                             : FLOW_RATE_MINOR;
-
-        if (static_cast<double>(rand()) / RAND_MAX < flow_rate) {
-            if (lane->find_car_at_pos(0) == nullptr) {
-                bool wants_to_turn = false;
-
-                float aggression = static_cast<float>(rand()) /
-                                   RAND_MAX;  // TODO: come up with some
-                                              // aggression distribution
-                auto car =
-                    std::make_unique<Car>(lane->dir, aggression, lane.get(),
-                                          wants_to_turn, next_car_id++);
-                lane->cars.insert(lane->cars.begin(), car.get());
-                g_cars.insert(g_cars.begin(), std::move(car));
-            }
-        }
+        // TODO: implement
     }
 }
 
 void apply_nash_rules(Lane* lane) {
     for (size_t i = 0; i < lane->cars.size(); i++) {
         Car* car = lane->cars.at(i);
+
+        // R0: slow-to-start
 
         // R1: Acceleration
         if (car->speed < VMAX) {
@@ -160,36 +97,34 @@ void apply_nash_rules(Lane* lane) {
         // R3: Randomization
         if (rand() % 2 == 1) car->speed = std::max(0, car->speed - 1);
 
-        // R4: Movement
+        // R4: Lane change
+        // R4a: incentive + improvement
+        // R4b: safety check
+        // R4c: opportunity
+
+        // R5: Movement
         car->pos += car->speed;
     }
 }
 
 void remove_out_of_bounds_cars() {
-    g_cars.erase(
-        std::remove_if(g_cars.begin(), g_cars.end(),
-                       [](const std::unique_ptr<Car>& car) {
-                           if (car->pos >= car->lane->len_cels) {
-                               // Also remove from lane
-                               auto& lane_cars = car->lane->cars;
-                               lane_cars.erase(
-                                   std::remove(lane_cars.begin(),
-                                               lane_cars.end(), car.get()),
-                                   lane_cars.end());
-                               return true;
-                           }
-                           return false;
-                       }),
-        g_cars.end());
+    for (auto& lane : g_lanes) {
+        lane->cars.erase(
+            std::remove_if(
+                lane->cars.begin(), lane->cars.end(),
+                [](const Car* car) { return car->pos >= car->lane->len_cels; }),
+            lane->cars.end());
+    }
+    g_cars.erase(std::remove_if(g_cars.begin(), g_cars.end(),
+                                [](const std::unique_ptr<Car>& car) {
+                                    return car->pos >= car->lane->len_cels;
+                                }),
+                 g_cars.end());
 }
 
 void sim_step(unsigned long mt) {
     // spawn_cars();
     if (mt == 0) spawn_one_car(g_lanes.at(0).get());
-
-    // for (auto& car : g_cars) {
-    //     attempt_lane_change(car.get());
-    // }
 
     for (auto& lane : g_lanes) {
         apply_nash_rules(lane.get());

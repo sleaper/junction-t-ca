@@ -4,22 +4,15 @@
 
 #include "Car.h"
 
-// Road color constants
-const uint8_t NORTH_ROAD[] = {255, 255, 255};
-const uint8_t SOUTH_ROAD[] = {200, 200, 200};
-const uint8_t WEST_ROAD[] = {100, 100, 100};
-const uint8_t EAST_ROAD[] = {0, 255, 0};
-const uint8_t INTERSECTION_COLOR[] = {255, 0, 0};
+const uint8_t ROAD_COLOR[] = {255, 255, 255};
 
-Lane::Lane(Direction dir, LaneType type, int len_cels, std::string id,
-           int start_x, int start_y, bool is_vertical)
+Lane::Lane(Direction dir, int len_cels, std::string id, int start_x,
+           int start_y)
     : dir(dir),
-      type(type),
       len_cels(len_cels),
       id(id),
       start_x(start_x),
-      start_y(start_y),
-      is_vertical(is_vertical) {}
+      start_y(start_y) {}
 
 std::pair<int, int> Lane::get_direction_vector() const {
     switch (dir) {
@@ -48,22 +41,7 @@ std::pair<int, int> Lane::get_position(size_t pos) const {
             start_y + dy * static_cast<int>(pos)};
 }
 
-const uint8_t* Lane::get_road_color() const {
-    switch (dir) {
-        case Direction::WEST:
-            return WEST_ROAD;
-        case Direction::NORTH:
-            return NORTH_ROAD;
-        case Direction::EAST:
-            return EAST_ROAD;
-        case Direction::SOUTH:
-            return SOUTH_ROAD;
-        case Direction::ANY:
-            return INTERSECTION_COLOR;
-        default:
-            throw std::invalid_argument("Invalid direction");
-    }
-}
+const uint8_t* Lane::get_road_color() const { return ROAD_COLOR; }
 
 int Lane::distance_to_next_car(size_t car_index) const {
     if (car_index >= cars.size() - 1) {
