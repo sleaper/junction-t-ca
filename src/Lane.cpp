@@ -41,6 +41,28 @@ std::pair<int, int> Lane::get_position(size_t pos) const {
             start_y + dy * static_cast<int>(pos)};
 }
 
+int Lane::target_front_gap(size_t car_index, Lane* target_lane) const {
+    Car* car = cars[car_index];
+    for (size_t i = 0; i < target_lane->cars.size(); i++) {
+        Car* target_car = target_lane->cars[i];
+        if (target_car->pos > car->pos) {
+            return target_car->pos - car->pos - CAR_LENGTH_CELLS;
+        }
+    }
+    return -1;
+}
+
+int Lane::target_back_gap(size_t car_index, Lane* target_lane) const {
+    Car* car = cars[car_index];
+    for (int i = static_cast<int>(target_lane->cars.size()) - 1; i >= 0; i--) {
+        Car* target_car = target_lane->cars[i];
+        if (target_car->pos < car->pos) {
+            return car->pos - target_car->pos - CAR_LENGTH_CELLS;
+        }
+    }
+    return -1;
+}
+
 int Lane::front_gap(size_t car_index) const {
     if (car_index + 1 >= cars.size()) {
         return -1;

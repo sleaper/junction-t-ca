@@ -80,7 +80,8 @@ void switch_lane(Car* car, Lane* from_lane, Lane* to_lane) {
     // TODO:
 }
 
-void apply_nash_rules(Lane* lane) {
+void apply_rules(Lane* lane, const Lane* prev_state,
+                 const Lane* prev_state_other_lane) {
     for (size_t i = 0; i < lane->cars.size(); i++) {
         Car* car = lane->cars.at(i).get();
 
@@ -113,14 +114,15 @@ void apply_nash_rules(Lane* lane) {
             bool incentive = front_dist < min(accel_speed, VMAX);
 
             bool improvement =
-                other_lane->front_gap(other_lane->find_car_at_pos(car->pos)) >
-                front_dist;
+                other_lane->target_front_gap(
+                    other_lane->find_car_at_pos(car->pos)) > front_dist;
 
-            bool safety = other_lane->back_gap(
+            bool safety = other_lane->target_back_gap(
                               other_lane->find_car_at_pos(car->pos)) > VMAX;
 
             if (incentive && improvement && safety) {
-                // TODO: Change lane
+                switch_lane(car, lane, other_lane);
+                // TODO: Do they move even in the new lane?
             }
         }
 
@@ -142,8 +144,16 @@ void remove_out_of_bounds_cars() {
 void sim_step(unsigned long mt) {
     spawn_cars();
 
+    // state in t-1
+    std::vector<Lane> prev_states;
     for (auto& lane : g_lanes) {
-        apply_nash_rules(lane.get());
+        prev_states.push_back(*lane);
+    }
+
+    // TODO: Ended here
+    for (const auto& lane : g_lanes) {
+        apply_rules(lane.get(), &prev_states[i],
+                    &prev_states[(i + 1) % g_lanes.size()]);
     }
 
     remove_out_of_bounds_cars();
