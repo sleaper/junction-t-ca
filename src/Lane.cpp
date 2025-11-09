@@ -5,79 +5,44 @@
 #include <cmath>
 #include <stdexcept>
 
-#include "Car.h"
+#include "config.h"
 
 using namespace cimg_library;
 
 const uint8_t ROAD_COLOR[] = {255, 255, 255};
+const int EMPTY = -1;
 
-Lane::Lane(Direction dir, int len_cels, std::string id, int start_x,
-           int start_y)
-    : dir(dir),
-      len_cels(len_cels),
-      id(id),
-      start_x(start_x),
-      start_y(start_y) {}
+Lane::Lane(int len_cels_, int id_, int start_x_, int start_y_)
+    : len_cels(len_cels_),
+      id(id_),
+      start_x(start_x_),
+      start_y(start_y_),
+      occ(len_cels_, EMPTY),
+      next_occ(len_cels_, EMPTY),
+      gap_ahead(len_cels_, 0),
+      gap_behind(len_cels_, 0) {}
 
-std::pair<int, int> Lane::get_direction_vector() const {
-    switch (dir) {
-        case Direction::WEST:
-            return {-1, 0};
-        case Direction::EAST:
-            return {1, 0};
-        case Direction::NORTH:
-            return {0, -1};
-        case Direction::SOUTH:
-            return {0, 1};
-        case Direction::ANY:
-            return {1, 1};
-        default:
-            throw std::invalid_argument("Invalid direction");
-    }
+std::pair<int, int> Lane::screen_coords(size_t pos) const {
+    return {start_x + static_cast<int>(pos), start_y};
 }
 
-/*
- * Translates a position in the lane vector into (x) coordinates on the screen
- * (x, y).
- */
-std::pair<int, int> Lane::get_position(size_t pos) const {
-    auto [dx, dy] = get_direction_vector();
-    return {start_x + dx * static_cast<int>(pos),
-            start_y + dy * static_cast<int>(pos)};
-}
+void Lane::clear_next() { std::fill(next_occ.begin(), next_occ.end(), EMPTY); }
 
-int Lane::front_gap(size_t car_pos) const {
-    if (car_pos + 1 >= cars.size()) {
-        return INFINITY;
-    } else {
-        auto car = std::find(cars.begin(), cars.end(), cars.at(car_pos));
-        auto next_car = std::next(car);
-
-        return std::distance(car, next_car);
-    }
-}
-
-int Lane::back_gap(size_t car_pos) const {
-    if (car_pos == 0) {
-        return -1;
-    } else {
-        return cars[car_pos]->pos - cars[car_pos - 1]->pos - CAR_LENGTH_CELLS;
-    }
-}
-
-void Lane::insert_car(Car* car) {
-    auto it = std::lower_bound(
-        cars.begin(), cars.end(), car,
-        [](const Car* a, const Car* b) { return a->pos < b->pos; });
-    cars.insert(it, car);
+void Lane::swap_buffers() {
+    occ.swap(next_occ);
+    clear_next();
 }
 
 void Lane::draw(CImg<unsigned char>& img) const {
-    auto [x1, y1] = get_position(0);
-    auto [x2, y2] = get_position(len_cels);
+    auto [x1, y1] = screen_coords(0);
+    auto [x2, y2] = screen_coords(len_cels);
     img.draw_line(x1, y1, x2, y2, ROAD_COLOR, 1);
 
-    for (const auto& car : cars) {
-        car->draw(img);
+    for (const auto& car_id : occ) {
+        if (car_id != EMPTY) {
+            auto [cx, cy] = screen_coords(&car_id - &occ[0]);
+            // img.draw_rectangle(cx, cy, cx + CAR_LEN, cy, red, 3);
+            img.draw_point(cx, cy, red, 3);
+        }
     }
 }
