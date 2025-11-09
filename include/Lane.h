@@ -1,7 +1,6 @@
 #ifndef LANE_H
 #define LANE_H
 
-#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -30,8 +29,6 @@ struct Lane {
 
     int front_gap(size_t car_index) const;
     int back_gap(size_t car_index) const;
-    int target_front_gap(size_t car_index) const;
-    int target_back_gap(size_t car_index) const;
 
     std::pair<int, int> get_direction_vector() const;
     std::pair<int, int> get_position(size_t pos) const;

@@ -13,7 +13,7 @@ constexpr double CELL_LENGTH_M = 0.5;
 
 struct Car {
     int speed = 0;
-    size_t pos = 0;
+    int pos;
     Direction dir;
     Lane* lane = nullptr;
     size_t id;

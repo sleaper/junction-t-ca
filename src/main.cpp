@@ -15,7 +15,6 @@
 using namespace cimg_library;
 
 // TODO: for visualisation purposes
-
 const int SCREEN_CELLS_X = 1000;
 const int SCREEN_CELLS_Y = 1000;
 const int CELL_PIXELS = 10;  // in pixels
@@ -29,8 +28,7 @@ const double RANDOMIZATION_PROB = 0.1;  // p
 
 const int CAR_SPAWN_DISTANCE = 1;  // Minimum cells gap before spawning
 
-// Global state
-std::vector<std::unique_ptr<Lane>> g_lanes;
+std::array<std::unique_ptr<Lane>, 2> g_lanes;
 std::vector<std::unique_ptr<Car>> g_cars;
 size_t next_car_id = 0;
 
@@ -42,8 +40,8 @@ void init_lanes() {
     auto b_lane = std::make_unique<Lane>(Direction::EAST, MAIN_LANE_LENGTH, "b",
                                          0, y_mid + 1);
 
-    g_lanes.push_back(std::move(a_lane));
-    g_lanes.push_back(std::move(b_lane));
+    g_lanes.at(0) = std::move(a_lane);
+    g_lanes.at(1) = std::move(b_lane);
 }
 
 void draw(CImg<unsigned char>& img) {
@@ -58,9 +56,9 @@ void spawn_cars() {
     // TODO: Random configuration on the road
     // TODO: Spawn car based on flow rate and choose lead and lag distance based
     // on aggression
-    for (auto& lane : g_lanes) {
-        // TODO: implement
-    }
+    // for (auto& lane : g_lanes) {
+    //     // TODO: implement
+    // }
 }
 
 Lane* get_other_lane(Lane* lane) {
@@ -80,10 +78,9 @@ void switch_lane(Car* car, Lane* from_lane, Lane* to_lane) {
     // TODO:
 }
 
-void apply_rules(Lane* lane, const Lane* prev_state,
-                 const Lane* prev_state_other_lane) {
-    for (size_t i = 0; i < lane->cars.size(); i++) {
-        Car* car = lane->cars.at(i).get();
+void apply_rules(Lane* lane) {
+    for (size_t pos = 0; pos < lane->cars.size(); pos++) {
+        Car* car = lane->cars.at(pos);
 
         // R1: slow-to-start
         if (car->speed == 0) {
@@ -100,7 +97,7 @@ void apply_rules(Lane* lane, const Lane* prev_state,
 
         // R3: Deceleration due to other cars
         // TODO: Handle no car ahead
-        int front_dist = lane->front_gap(i);
+        int front_dist = lane->front_gap(pos);
         int decel_speed = std::min(accel_speed, front_dist);
 
         // R4: Randomization
@@ -111,18 +108,16 @@ void apply_rules(Lane* lane, const Lane* prev_state,
         // R5: Movement or Lane change
         Lane* other_lane = get_other_lane(lane);
         if (other_lane) {
-            bool incentive = front_dist < min(accel_speed, VMAX);
+            bool incentive = front_dist < std::min(accel_speed, VMAX);
 
-            bool improvement =
-                other_lane->target_front_gap(
-                    other_lane->find_car_at_pos(car->pos)) > front_dist;
+            bool improvement = other_lane->front_gap(pos) > front_dist;
 
-            bool safety = other_lane->target_back_gap(
-                              other_lane->find_car_at_pos(car->pos)) > VMAX;
+            bool safety = other_lane->back_gap(pos) > VMAX;
 
             if (incentive && improvement && safety) {
                 switch_lane(car, lane, other_lane);
                 // TODO: Do they move even in the new lane?
+                // continue;
             }
         }
 
@@ -132,28 +127,17 @@ void apply_rules(Lane* lane, const Lane* prev_state,
 
 void remove_out_of_bounds_cars() {
     for (auto& lane : g_lanes) {
-        lane->cars.erase(std::remove_if(lane->cars.begin(), lane->cars.end(),
-                                        [](const std::unique_ptr<Car>& car) {
-                                            return car->pos >=
-                                                   car->lane->len_cels;
-                                        }),
-                         lane->cars.end());
+        lane->cars.erase(std::remove_if(
+            lane->cars.begin(), lane->cars.end(),
+            [&lane](Car* car) { return car->pos >= lane->len_cels; }));
     }
 }
 
-void sim_step(unsigned long mt) {
+void sim_step() {
     spawn_cars();
 
-    // state in t-1
-    std::vector<Lane> prev_states;
-    for (auto& lane : g_lanes) {
-        prev_states.push_back(*lane);
-    }
-
-    // TODO: Ended here
     for (const auto& lane : g_lanes) {
-        apply_rules(lane.get(), &prev_states[i],
-                    &prev_states[(i + 1) % g_lanes.size()]);
+        apply_rules(lane.get());
     }
 
     remove_out_of_bounds_cars();
@@ -175,7 +159,7 @@ int main() {
     if (visualize) win = CImgDisplay(WIN_W, WIN_H, "Simulation grid");
 
     for (unsigned long mt = 0; mt < 10000; mt += DELTA) {
-        sim_step(mt);
+        sim_step();
 
         if (visualize) {
             draw(grid);

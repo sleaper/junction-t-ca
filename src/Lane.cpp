@@ -1,8 +1,13 @@
 #include "Lane.h"
 
+#include <stdint.h>
+
+#include <cmath>
 #include <stdexcept>
 
 #include "Car.h"
+
+using namespace cimg_library;
 
 const uint8_t ROAD_COLOR[] = {255, 255, 255};
 
@@ -41,43 +46,22 @@ std::pair<int, int> Lane::get_position(size_t pos) const {
             start_y + dy * static_cast<int>(pos)};
 }
 
-int Lane::target_front_gap(size_t car_index, Lane* target_lane) const {
-    Car* car = cars[car_index];
-    for (size_t i = 0; i < target_lane->cars.size(); i++) {
-        Car* target_car = target_lane->cars[i];
-        if (target_car->pos > car->pos) {
-            return target_car->pos - car->pos - CAR_LENGTH_CELLS;
-        }
+int Lane::front_gap(size_t car_pos) const {
+    if (car_pos + 1 >= cars.size()) {
+        return INFINITY;
+    } else {
+        auto car = std::find(cars.begin(), cars.end(), cars.at(car_pos));
+        auto next_car = std::next(car);
+
+        return std::distance(car, next_car);
     }
-    return -1;
 }
 
-int Lane::target_back_gap(size_t car_index, Lane* target_lane) const {
-    Car* car = cars[car_index];
-    for (int i = static_cast<int>(target_lane->cars.size()) - 1; i >= 0; i--) {
-        Car* target_car = target_lane->cars[i];
-        if (target_car->pos < car->pos) {
-            return car->pos - target_car->pos - CAR_LENGTH_CELLS;
-        }
-    }
-    return -1;
-}
-
-int Lane::front_gap(size_t car_index) const {
-    if (car_index + 1 >= cars.size()) {
+int Lane::back_gap(size_t car_pos) const {
+    if (car_pos == 0) {
         return -1;
     } else {
-        return cars[car_index + 1]->pos - cars[car_index]->pos -
-               CAR_LENGTH_CELLS;
-    }
-}
-
-int Lane::back_gap(size_t car_index) const {
-    if (car_index == 0) {
-        return -1;
-    } else {
-        return cars[car_index]->pos - cars[car_index - 1]->pos -
-               CAR_LENGTH_CELLS;
+        return cars[car_pos]->pos - cars[car_pos - 1]->pos - CAR_LENGTH_CELLS;
     }
 }
 
@@ -88,19 +72,12 @@ void Lane::insert_car(Car* car) {
     cars.insert(it, car);
 }
 
-Car* Lane::find_car_at_pos(size_t pos) const {
-    for (auto& car : cars) {
-        if (car->pos == pos) return car;
-    }
-    return nullptr;
-}
-
 void Lane::draw(CImg<unsigned char>& img) const {
     auto [x1, y1] = get_position(0);
     auto [x2, y2] = get_position(len_cels);
     img.draw_line(x1, y1, x2, y2, ROAD_COLOR, 1);
 
-    for (const& auto car : cars) {
+    for (const auto& car : cars) {
         car->draw(img);
     }
 }
