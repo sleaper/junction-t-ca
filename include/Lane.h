@@ -12,7 +12,6 @@ using namespace cimg_library;
 struct Car;
 
 struct Lane {
-    size_t len_cels;
     int id;
     int start_x, start_y;
 
@@ -21,7 +20,7 @@ struct Lane {
 
     std::vector<int> gap_ahead, gap_behind;
 
-    Lane(int len_cels, int id, int start_x, int start_y);
+    Lane(int id, int start_x, int start_y);
 
     void clear_next();
     void swap_buffers();

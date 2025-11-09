@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -33,8 +35,8 @@ size_t next_car_id = 0;
 void init_lanes() {
     int y_mid = SCREEN_CELLS_Y / 2;
 
-    auto a_lane = std::make_unique<Lane>(MAIN_LANE_LENGTH, 0, 0, y_mid);
-    auto b_lane = std::make_unique<Lane>(MAIN_LANE_LENGTH, 1, 0, y_mid + 1);
+    auto a_lane = std::make_unique<Lane>(0, 0, y_mid);
+    auto b_lane = std::make_unique<Lane>(1, 0, y_mid + 1);
 
     g_lanes.push_back(std::move(a_lane));
     g_lanes.push_back(std::move(b_lane));
@@ -61,13 +63,16 @@ int get_accel(int speed) {
 int front_gap(const Car* car, const Lane* lane) {
     int gap = 0;
     int front_of_car = car->rear_cell + CAR_LEN;
-    for (int i = front_of_car; i < MAIN_LANE_LENGTH; i++) {
-        if (lane->occ.at(i) != -1) {
+
+    for (int i = 0; i < MAIN_LANE_LENGTH; i++) {
+        int cell = (front_of_car + i) % MAIN_LANE_LENGTH;
+        if (lane->occ.at(cell) != -1 && lane->occ.at(cell) != car->id) {
             return gap;
         }
         gap++;
     }
-    return gap;  // No car ahead
+
+    return std::min(gap, VMAX);  // No car ahead
 }
 
 void spawn_cars() {
@@ -97,80 +102,83 @@ void spawn_cars() {
     g_cars.push_back(std::move(car));
 }
 
-void apply_rules() {
-    for (auto& car : g_cars) {
+// R5: Movement or Lane change
+// Lane* other_lane = get_other_lane(lane);
+// if (other_lane) {
+//     bool incentive = front_dist < std::min(accel_speed, VMAX);
+
+//     bool improvement = other_lane->front_gap(pos) > front_dist;
+
+//     bool safety = other_lane->back_gap(pos) > VMAX;
+
+//     if (incentive && improvement && safety) {
+//         switch_lane(car, lane, other_lane);
+//         // TODO: Do they move even in the new lane?
+//         // continue;
+//     }
+// }
+
+void sim_step(int mt) {
+    if (mt == 0) spawn_cars();
+
+    std::vector<int> next_v(g_cars.size());
+    std::vector<int> next_pos(g_cars.size());
+
+    for (size_t i = 0; i < g_cars.size(); i++) {
+        Car* car = g_cars[i].get();
         Lane* lane = g_lanes.at(car->lane_id).get();
-        int f_gap = front_gap(car.get(), lane);
+        bool hesitate = false;
+        int v_plan = car->v;
+
+        int f_gap = front_gap(car, lane);
+        std::cout << "Car " << car->id << " front gap: " << f_gap << "\n";
 
         // R1: slow-to-start
-        if (car->v == 0 && car->prev_front_dist == 0) {
-            // With probability q, stay stopped
+        if (car->v == 0 && car->prev_front_dist == 0 && f_gap > 0) {
+            // With probability q, hesitate
             if ((rand() % 100) < (SLOW_TO_START_PROB * 100)) {
-                car->prev_front_dist = f_gap;
-                continue;
+                hesitate = true;
             }
         }
 
         // R2: Acceleration
-        int accel_speed = std::min(car->v + get_accel(car->v), VMAX);
+        if (!hesitate) v_plan = std::min(car->v + get_accel(car->v), VMAX);
 
         // R3: Deceleration due to other cars
-        // TODO: Handle no car ahead
-        int decel_speed = std::min(accel_speed, f_gap);
+        v_plan = std::min(v_plan, f_gap);
 
         // R4: Randomization
         if ((rand() % 100) < (RANDOMIZATION_PROB * 100)) {
-            decel_speed = std::max(decel_speed - 1, 0);
+            v_plan = std::max(v_plan - 1, 0);
         }
 
-        // R5: Movement or Lane change
-        // Lane* other_lane = get_other_lane(lane);
-        // if (other_lane) {
-        //     bool incentive = front_dist < std::min(accel_speed, VMAX);
-
-        //     bool improvement = other_lane->front_gap(pos) > front_dist;
-
-        //     bool safety = other_lane->back_gap(pos) > VMAX;
-
-        //     if (incentive && improvement && safety) {
-        //         switch_lane(car, lane, other_lane);
-        //         // TODO: Do they move even in the new lane?
-        //         // continue;
-        //     }
-        // }
-
-        car->v = decel_speed;
+        next_v[i] = v_plan;
+        next_pos[i] = car->rear_cell + v_plan;
         car->prev_front_dist = f_gap;
     }
 
-    for (int i = g_cars.size() - 1; i >= 0; i--) {
-        auto& car = g_cars[i];
-        Lane* lane = g_lanes.at(car->lane_id).get();
+    for (auto& lane : g_lanes) {
+        lane->clear_next();
+    }
 
-        // Clear old position (all cells)
-        for (int j = 0; j < CAR_LEN; j++) {
-            lane->occ.at(car->rear_cell + j) = -1;
-        }
-
-        // Move
-        car->rear_cell += car->v;
-
-        // Remove if exited TODO: Maybe just soft remove for stats?
-        if (car->rear_cell + CAR_LEN >= MAIN_LANE_LENGTH) {
+    for (size_t i = 0; i < g_cars.size(); i++) {
+        if (next_pos[i] >= MAIN_LANE_LENGTH) {
             g_cars.erase(g_cars.begin() + i);
             continue;
         }
 
-        // Mark new position (all cells)
+        g_cars[i]->v = next_v[i];
+        g_cars[i]->rear_cell = next_pos[i];
+
+        Lane* lane = g_lanes.at(g_cars[i]->lane_id).get();
         for (int j = 0; j < CAR_LEN; j++) {
-            lane->occ.at(car->rear_cell + j) = car->id;
+            lane->next_occ.at(g_cars[i]->rear_cell + j) = g_cars[i]->id;
         }
     }
-}
 
-void sim_step() {
-    spawn_cars();
-    apply_rules();
+    for (auto& lane : g_lanes) {
+        lane->swap_buffers();
+    }
 }
 
 int main() {
@@ -189,7 +197,7 @@ int main() {
     if (visualize) win = CImgDisplay(WIN_W, WIN_H, "Simulation grid");
 
     for (unsigned long mt = 0; mt < 10000; mt += DELTA) {
-        sim_step();
+        sim_step(mt);
 
         if (visualize) {
             draw(grid);
