@@ -1,6 +1,7 @@
 #ifndef LANE_H
 #define LANE_H
 
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -10,6 +11,8 @@
 using namespace cimg_library;
 
 struct Car;
+const int EMPTY_CELL = -1;
+const uint8_t ROAD_COLOR[] = {255, 255, 255};
 
 struct Lane {
     int id;

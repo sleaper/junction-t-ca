@@ -7,7 +7,7 @@ constexpr int CELL_PIXELS = 5;       // in pixels
 constexpr double CELL_SIZE_M = 0.5;  // in meters
 
 constexpr int DELTA = 1;               // 1 second of model time per step
-constexpr int MAIN_LANE_LENGTH = 100;  // in cells
+constexpr int MAIN_LANE_LENGTH = 300;  // in cells
 constexpr int VMAX = 60;
 
 constexpr double SLOW_TO_START_PROB = 0.5;  // q
