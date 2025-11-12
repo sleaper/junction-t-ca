@@ -91,35 +91,49 @@ int back_gap(const Car* car, const Lane* lane) {
     return std::min(gap, VMAX);  // No car behind
 }
 
-void spawn_cars() {
-    Lane* lane = g_lanes.at(0).get();
+void spawn_cars(double density) {
+    // Spawn n cars in random configuration
+    int n_cars = static_cast<int>(density * MAIN_LANE_LENGTH / CAR_LEN);
 
-    // Spawn pos is free
-    for (int i = 0; i < CAR_LEN; i++) {
-        if (lane->occ.at(i) != EMPTY_CELL) return;
+    for (size_t i = 0; i < g_lanes.size(); i++) {
+        Lane* lane = g_lanes.at(i).get();
+        int spawned = 0;
+
+        int rand_pos = rand() % (MAIN_LANE_LENGTH - CAR_LEN);
+
+        while (spawned < n_cars) {
+            rand_pos = rand() % (MAIN_LANE_LENGTH - CAR_LEN);
+
+            // Check if position is free
+            bool pos_free = true;
+            for (int j = 0; j < CAR_LEN; j++) {
+                if (lane->occ.at(rand_pos + j) != EMPTY_CELL) {
+                    pos_free = false;
+                    break;
+                }
+            }
+
+            if (pos_free && (rand() % 100) < (density * 100)) {
+                auto car = std::make_unique<Car>();
+                car->id = static_cast<int>(next_car_id++);
+                car->lane_id = lane->id;
+                car->rear_cell = rand_pos;
+                car->v = 0;
+
+                for (int j = 0; j < CAR_LEN; j++) {
+                    lane->occ.at(car->rear_cell + j) = car->id;
+                }
+
+                g_cars.push_back(std::move(car));
+                spawned++;
+                if (spawned >= n_cars) break;
+            }
+        }
     }
-
-    // Check minimum gap ahead
-    for (int i = CAR_LEN;
-         i < CAR_LEN + CAR_SPAWN_DISTANCE && i < MAIN_LANE_LENGTH; i++) {
-        if (lane->occ.at(i) != EMPTY_CELL) return;
-    }
-
-    auto car = std::make_unique<Car>();
-    car->id = (int)next_car_id++;
-    car->lane_id = lane->id;
-    car->rear_cell = 0;
-    car->v = 0;
-
-    for (int i = 0; i < CAR_LEN; i++) {
-        lane->occ.at(car->rear_cell + i) = car->id;
-    }
-
-    g_cars.push_back(std::move(car));
 }
 
 void sim_step(size_t mt) {
-    if (mt == 0) spawn_cars();
+    if (mt == 0) spawn_cars(0.2);
 
     std::vector<int> next_v(g_cars.size());
     std::vector<int> next_pos(g_cars.size());
@@ -154,7 +168,6 @@ void sim_step(size_t mt) {
 
         // R4: Randomization
         if ((rand() % 100) < (RANDOMIZATION_PROB * 100)) {
-            std::cout << "Randomization for car " << car->id << "\n";
             v_plan = std::max(v_plan - 1, 0);
         }
 
@@ -172,10 +185,9 @@ void sim_step(size_t mt) {
             }
         }
 
-        std::cout << "Car " << car->id
-                  << " lane change check: incentive=" << incentive
-                  << ", improvement=" << improvement << ", safety=" << safety
-                  << ", pos_free=" << pos_free << "\n";
+        std::cout << "Car " << car->id << "incentive: " << incentive
+                  << " improvement: " << improvement << " safety: " << safety
+                  << " pos_free: " << pos_free << "\n";
         if (incentive && improvement && safety && pos_free) {
             std::cout << "Car " << car->id << " changing lane from "
                       << car->lane_id << " to " << other_lane->id << "\n";
