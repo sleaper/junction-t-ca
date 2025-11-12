@@ -10,8 +10,8 @@ constexpr int DELTA = 1;               // 1 second of model time per step
 constexpr int MAIN_LANE_LENGTH = 500;  // in cells
 constexpr int VMAX = 60;
 
-constexpr double SLOW_TO_START_PROB = 0.2;  // q
-constexpr double RANDOMIZATION_PROB = 0.2;  // p
+constexpr double SLOW_TO_START_PROB = 0.5;  // q
+constexpr double RANDOMIZATION_PROB = 0.5;  // p
 
 constexpr int CAR_LEN = 12;
 constexpr int CAR_SPAWN_DISTANCE = 12;  // in cells

@@ -72,7 +72,7 @@ int front_gap(const Car* car, const Lane* lane) {
         gap++;
     }
 
-    return std::min(gap, VMAX);  // No car ahead
+    return gap;
 }
 
 int back_gap(const Car* car, const Lane* lane) {
@@ -88,7 +88,7 @@ int back_gap(const Car* car, const Lane* lane) {
         gap++;
     }
 
-    return std::min(gap, VMAX);  // No car behind
+    return gap;
 }
 
 void spawn_cars(double density) {
@@ -173,21 +173,19 @@ void sim_step(size_t mt) {
 
         // R5: Lane change
         Lane* other_lane = g_lanes.at(1 - car->lane_id).get();
-        bool incentive = f_gap < std::min(v_plan, VMAX);
+        bool incentive = f_gap < std::min(car->v + get_accel(car->v), VMAX);
         bool improvement = front_gap(car, other_lane) > f_gap;
         bool safety = back_gap(car, other_lane) > VMAX;
 
         bool pos_free = true;
-        for (size_t i = 0; i < CAR_LEN; i++) {
-            if (other_lane->occ.at(car->rear_cell + i) != EMPTY_CELL) {
+        for (size_t j = 0; j < CAR_LEN; j++) {
+            int cell = (car->rear_cell + j) % MAIN_LANE_LENGTH;
+            if (other_lane->occ.at(cell) != EMPTY_CELL) {
                 pos_free = false;
                 break;
             }
         }
 
-        std::cout << "Car " << car->id << "incentive: " << incentive
-                  << " improvement: " << improvement << " safety: " << safety
-                  << " pos_free: " << pos_free << "\n";
         if (incentive && improvement && safety && pos_free) {
             std::cout << "Car " << car->id << " changing lane from "
                       << car->lane_id << " to " << other_lane->id << "\n";
@@ -213,6 +211,20 @@ void sim_step(size_t mt) {
             next_pos.erase(next_pos.begin() + i);
             next_lane.erase(next_lane.begin() + i);
             continue;
+        }
+
+        Lane* target_lane = g_lanes.at(next_lane[i]).get();
+        bool collision = false;
+        for (int j = 0; j < CAR_LEN; j++) {
+            if (target_lane->next_occ.at(next_pos[i] + j) != EMPTY_CELL) {
+                collision = true;
+                break;
+            }
+        }
+
+        if (collision) {
+            throw std::runtime_error("Collision detected for car " +
+                                     std::to_string(g_cars[i]->id));
         }
 
         g_cars[i]->v = next_v[i];

@@ -9,6 +9,7 @@ Dockerfile
 *.pyc
 ca
 *.d
+*.pdf
 
 build/
 test
