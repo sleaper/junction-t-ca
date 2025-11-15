@@ -36,6 +36,7 @@ struct StepMetrics {
     double flow = 0.0;
     double avg_speed = 0.0;         // cells per step
     double lane_change_rate = 0.0;  // lane changes per cell per step
+    std::vector<std::vector<int>> lanes;
 };
 
 class Statistics {
@@ -54,6 +55,7 @@ class Statistics {
             occupied_cells +=
                 std::count_if(lane->occ.begin(), lane->occ.end(),
                               [](int id) { return id != EMPTY_CELL; });
+            sample.lanes.push_back(lane->occ);
         }
 
         double total_velocity = 0.0;
@@ -88,12 +90,8 @@ class Statistics {
         if (!out.is_open()) {
             throw std::runtime_error("Failed to open " + path);
         }
-        out << "step,model_time,density,flow,avg_speed,lane_change_rate\n";
-        for (size_t i = 0; i < samples_.size(); ++i) {
-            const auto& s = samples_[i];
-            out << i << ',' << s.model_time << ',' << s.density << ',' << s.flow
-                << ',' << s.avg_speed << ',' << s.lane_change_rate << '\n';
-        }
+
+        // TODO:
     }
 
     void print_summary() const {
@@ -119,10 +117,78 @@ class Statistics {
     double lane_change_accum_ = 0.0;
 };
 
+struct RunOptions {
+    double spawn_density = SPAWN_DENSITY;
+    double breaking_prob = BREAKING_PROB;
+    double lane_change_prob = LANE_CHANGE_PROB;
+    double slow_to_start_prob = SLOW_TO_START_PROB;
+    std::string stats_path = "stats.csv";
+    bool visualize = false;
+};
+
 std::vector<std::unique_ptr<Lane>> g_lanes;
 std::vector<std::unique_ptr<Car>> g_cars;
 size_t next_car_id = 0;
 Statistics g_stats;
+RunOptions g_run_options;
+
+void print_usage(const char* prog_name) {
+    std::cout << "Usage: " << prog_name
+              << " [-d <0-1>] [-b <0-1>] [-s <0-1>] [-sts <0-1>] [-v]\n";
+    std::cout << "  -d       Initial density fraction (0 < d <= 1)\n"
+              << "  -b       Breaking probability (0 <= b <= 1)\n"
+              << "  -s       Lane change probability (0 <= s <= 1)\n"
+              << "  -sts     Slow-to-start probability (0 <= sts <= 1)\n"
+              << "  -v  Enable interactive GUI rendering\n"
+              << "  -h  Show this message\n";
+}
+
+RunOptions parse_args(int argc, char** argv) {
+    RunOptions opts;
+
+    auto parse_probability_value = [](const std::string& value,
+                                      const std::string& name) {
+        double prob = std::stod(value);
+        if (prob < 0.0 || prob > 1.0) {
+            throw std::invalid_argument(name +
+                                        " must be within the interval [0, 1].");
+        }
+        return prob;
+    };
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg(argv[i]);
+        auto require_value = [&](const std::string& name) -> std::string {
+            if (i + 1 >= argc) {
+                throw std::invalid_argument(name + " requires a value.");
+            }
+            return argv[++i];
+        };
+
+        if (arg == "-d") {
+            opts.spawn_density =
+                parse_probability_value(require_value(arg), "Density");
+        } else if (arg == "-b") {
+            opts.breaking_prob = parse_probability_value(
+                require_value(arg), "Breaking probability");
+        } else if (arg == "-s") {
+            opts.lane_change_prob = parse_probability_value(
+                require_value(arg), "Lane change probability");
+        } else if (arg == "-sts") {
+            opts.slow_to_start_prob = parse_probability_value(
+                require_value(arg), "Slow-to-start probability");
+        } else if (arg == "-v") {
+            opts.visualize = true;
+        } else if (arg == "-h") {
+            print_usage(argv[0]);
+            std::exit(0);
+        } else {
+            throw std::invalid_argument("Unrecognized argument: " + arg);
+        }
+    }
+
+    return opts;
+}
 
 void init_lanes() {
     int y_mid = SCREEN_CELLS_Y / 2;
@@ -205,7 +271,7 @@ void spawn_cars(double density) {
                 }
             }
 
-            if (pos_free && (rand() % 100) < (density * 100)) {
+            if (pos_free && ((double)rand() / RAND_MAX) < density) {
                 auto car = std::make_unique<Car>();
                 car->id = static_cast<int>(next_car_id++);
                 car->lane_id = lane->id;
@@ -225,7 +291,7 @@ void spawn_cars(double density) {
 }
 
 void sim_step(double mt) {
-    if (mt == 0) spawn_cars(SPAWN_DENSITY);
+    if (mt == 0) spawn_cars(g_run_options.spawn_density);
 
     std::vector<int> next_v(g_cars.size());
     std::vector<int> next_pos(g_cars.size());
@@ -248,7 +314,8 @@ void sim_step(double mt) {
         // R1: slow-to-start
         if (car->v == 0 && car->prev_front_dist == 0 && f_gap > 0) {
             // With probability q, hesitate
-            if ((rand() % 100) < (SLOW_TO_START_PROB * 100)) {
+            if (((double)rand() / RAND_MAX) <
+                g_run_options.slow_to_start_prob) {
                 hesitate = true;
             }
         }
@@ -260,7 +327,7 @@ void sim_step(double mt) {
         v_plan = std::min(v_plan, f_gap);
 
         // R4: Randomization
-        if ((rand() % 100) < (BREAKING_PROB * 100)) {
+        if (((double)rand() / RAND_MAX) < g_run_options.breaking_prob) {
             v_plan = std::max(v_plan - 1, 0);
         }
 
@@ -280,7 +347,8 @@ void sim_step(double mt) {
         }
 
         if (incentive && improvement && safety && pos_free) {
-            if ((rand() % 100) < (LANE_CHANGE_PROB * 100)) {
+            if (((double)rand() / RAND_MAX) <
+                (g_run_options.lane_change_prob)) {
                 next_lane[i] = other_lane->id;
                 lane_changes_this_step++;
             }
@@ -333,12 +401,20 @@ void sim_step(double mt) {
                         lane_changes_this_step);
 }
 
-int main() {
+int main(int argc, char** argv) {
+    try {
+        g_run_options = parse_args(argc, argv);
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << '\n';
+        print_usage(argv[0]);
+        return EXIT_FAILURE;
+    }
+
     init_lanes();
 
     srand(static_cast<unsigned int>(time(nullptr)));
 
-    bool visualize = false;
+    bool visualize = g_run_options.visualize;
 
     const int WIN_W = SCREEN_CELLS_X * CELL_PIXELS;
     const int WIN_H = SCREEN_CELLS_Y * CELL_PIXELS;
@@ -373,9 +449,9 @@ int main() {
     }
 
     try {
-        const std::string stats_file = "stats.csv";
-        g_stats.dump_csv(stats_file);
-        std::cout << "Saved per-step statistics to " << stats_file << "\n";
+        g_stats.dump_csv(g_run_options.stats_path);
+        std::cout << "Saved per-step statistics to " << g_run_options.stats_path
+                  << "\n";
     } catch (const std::exception& e) {
         std::cerr << "Failed to write statistics: " << e.what() << "\n";
     }
