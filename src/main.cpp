@@ -203,20 +203,13 @@ void sim_step(size_t mt) {
     }
 
     // Commit updates to all cars
-    for (size_t i = 0; i < g_cars.size();) {
-        // Remove car beyond the lane
-        if (next_pos[i] + CAR_LEN > MAIN_LANE_LENGTH) {
-            g_cars.erase(g_cars.begin() + i);
-            next_v.erase(next_v.begin() + i);
-            next_pos.erase(next_pos.begin() + i);
-            next_lane.erase(next_lane.begin() + i);
-            continue;
-        }
-
+    for (size_t i = 0; i < g_cars.size(); i++) {
         Lane* target_lane = g_lanes.at(next_lane[i]).get();
+
         bool collision = false;
         for (int j = 0; j < CAR_LEN; j++) {
-            if (target_lane->next_occ.at(next_pos[i] + j) != EMPTY_CELL) {
+            int cell = (next_pos[i] + j) % MAIN_LANE_LENGTH;
+            if (target_lane->next_occ.at(cell) != EMPTY_CELL) {
                 collision = true;
                 break;
             }
@@ -233,10 +226,9 @@ void sim_step(size_t mt) {
 
         Lane* lane = g_lanes.at(g_cars[i]->lane_id).get();
         for (int j = 0; j < CAR_LEN; j++) {
-            lane->next_occ.at(g_cars[i]->rear_cell + j) = g_cars[i]->id;
+            int cell = (g_cars[i]->rear_cell + j) % MAIN_LANE_LENGTH;
+            lane->next_occ.at(cell) = g_cars[i]->id;
         }
-
-        i++;
     }
 
     for (auto& lane : g_lanes) {
