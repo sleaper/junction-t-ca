@@ -10,8 +10,8 @@ constexpr int DELTA = 1;                 // 1 second of model time per step
 constexpr int MAIN_LANE_LENGTH = 10000;  // in cells
 constexpr int VMAX = 60;
 
-constexpr double SLOW_TO_START_PROB = 0.6;  // q
-constexpr double BREAKING_PROB = 0.6;       // p
+constexpr double SLOW_TO_START_PROB = 0.5;  // q
+constexpr double BREAKING_PROB = 0.5;       // p
 constexpr double LANE_CHANGE_PROB = 0.8;    // s
 
 constexpr int CAR_LEN = 12;
