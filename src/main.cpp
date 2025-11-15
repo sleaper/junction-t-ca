@@ -91,7 +91,44 @@ class Statistics {
             throw std::runtime_error("Failed to open " + path);
         }
 
-        // TODO:
+        out << "model_time,density,flow,avg_speed,lane_change_rate\n";
+
+        for (const auto& sample : samples_) {
+            out << sample.model_time << "," << sample.density << ","
+                << sample.flow << "," << sample.avg_speed << ","
+                << sample.lane_change_rate << "\n";
+        }
+    }
+
+    void dump_space_time(const std::string& path) const {
+        std::ofstream out(path);
+        if (!out.is_open()) {
+            throw std::runtime_error("Failed to open " + path);
+        }
+
+        // Space-time diagram format: time,lane,position,car_id
+        out << "time,lane,position,car_id\n";
+
+        for (const auto& sample : samples_) {
+            // Track which cars we've already output for this time step
+            std::vector<bool> car_outputted(1000,
+                                            false);  // Assuming max 1000 cars
+
+            for (size_t lane_idx = 0; lane_idx < sample.lanes.size();
+                 lane_idx++) {
+                for (size_t pos = 0; pos < sample.lanes[lane_idx].size();
+                     pos++) {
+                    int car_id = sample.lanes[lane_idx][pos];
+                    if (car_id != EMPTY_CELL && !car_outputted[car_id]) {
+                        // Output only once per car (at its rear position)
+                        // Divide by CAR_LEN to get position in car-lengths
+                        out << sample.model_time << "," << lane_idx << ","
+                            << (pos / CAR_LEN) << "," << car_id << "\n";
+                        car_outputted[car_id] = true;
+                    }
+                }
+            }
+        }
     }
 
     void print_summary() const {
@@ -449,9 +486,9 @@ int main(int argc, char** argv) {
     }
 
     try {
-        g_stats.dump_csv(g_run_options.stats_path);
-        std::cout << "Saved per-step statistics to " << g_run_options.stats_path
-                  << "\n";
+        std::string spacetime_path = "spacetime.csv";
+        g_stats.dump_space_time(spacetime_path);
+        std::cout << "Saved space-time data to " << spacetime_path << "\n";
     } catch (const std::exception& e) {
         std::cerr << "Failed to write statistics: " << e.what() << "\n";
     }
