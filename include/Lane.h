@@ -10,31 +10,25 @@
 
 using namespace cimg_library;
 
-// External constants
-extern const int VMAX;
-
-enum class Direction { WEST, EAST, NORTH, SOUTH, ANY };
-enum class LaneType { THROUGH, TURN, MIXED };
-
-struct Car;  // Forward declaration
+struct Car;
+const int EMPTY_CELL = -1;
+const uint8_t ROAD_COLOR[] = {255, 255, 255};
 
 struct Lane {
-    Direction dir;
-    LaneType type;
-    std::vector<Car*> cars;
-    size_t len_cels;
-    std::string id;
+    int id;
     int start_x, start_y;
-    bool is_vertical;
 
-    Lane(Direction dir, LaneType type, int len_cels, std::string id,
-         int start_x, int start_y, bool is_vertical);
+    std::vector<int> occ;       // t
+    std::vector<int> next_occ;  // t+1
 
-    std::pair<int, int> get_direction_vector() const;
-    std::pair<int, int> get_position(size_t pos) const;
-    const uint8_t* get_road_color() const;
-    int distance_to_next_car(size_t car_index) const;
-    Car* find_car_at_pos(size_t pos) const;
+    std::vector<int> gap_ahead, gap_behind;
+
+    Lane(int id, int start_x, int start_y);
+
+    void clear_next();
+    void swap_buffers();
+
+    std::pair<int, int> screen_coords(size_t pos) const;
     void draw(CImg<unsigned char>& img) const;
 };
 
