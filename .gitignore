@@ -10,6 +10,7 @@ Dockerfile
 ca
 *.d
 *.pdf
+*.csv
 
 build/
 test

@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -28,9 +30,99 @@ struct Car {
     bool aggressive = false;
 };
 
+struct StepMetrics {
+    double model_time = 0.0;
+    double density = 0.0;
+    double flow = 0.0;
+    double avg_speed = 0.0;         // cells per step
+    double lane_change_rate = 0.0;  // lane changes per cell per step
+};
+
+class Statistics {
+   public:
+    void record_step(double model_time,
+                     const std::vector<std::unique_ptr<Car>>& cars,
+                     const std::vector<std::unique_ptr<Lane>>& lanes,
+                     size_t lane_changes) {
+        StepMetrics sample;
+        sample.model_time = model_time;
+
+        const size_t total_cells =
+            lanes.size() * static_cast<size_t>(MAIN_LANE_LENGTH);
+        double occupied_cells = 0.0;
+        for (const auto& lane : lanes) {
+            occupied_cells +=
+                std::count_if(lane->occ.begin(), lane->occ.end(),
+                              [](int id) { return id != EMPTY_CELL; });
+        }
+
+        double total_velocity = 0.0;
+        for (const auto& car : cars) {
+            total_velocity += car->v;
+        }
+
+        sample.density = total_cells > 0
+                             ? occupied_cells / static_cast<double>(total_cells)
+                             : 0.0;
+        sample.flow = total_cells > 0
+                          ? total_velocity / static_cast<double>(total_cells)
+                          : 0.0;
+        sample.avg_speed =
+            cars.empty() ? 0.0
+                         : total_velocity / static_cast<double>(cars.size());
+        sample.lane_change_rate = total_cells > 0
+                                      ? static_cast<double>(lane_changes) /
+                                            static_cast<double>(total_cells)
+                                      : 0.0;
+
+        density_accum_ += sample.density;
+        flow_accum_ += sample.flow;
+        avg_speed_accum_ += sample.avg_speed;
+        lane_change_accum_ += sample.lane_change_rate;
+
+        samples_.push_back(sample);
+    }
+
+    void dump_csv(const std::string& path) const {
+        std::ofstream out(path);
+        if (!out.is_open()) {
+            throw std::runtime_error("Failed to open " + path);
+        }
+        out << "step,model_time,density,flow,avg_speed,lane_change_rate\n";
+        for (size_t i = 0; i < samples_.size(); ++i) {
+            const auto& s = samples_[i];
+            out << i << ',' << s.model_time << ',' << s.density << ',' << s.flow
+                << ',' << s.avg_speed << ',' << s.lane_change_rate << '\n';
+        }
+    }
+
+    void print_summary() const {
+        if (samples_.empty()) {
+            std::cout << "No statistics collected.\n";
+            return;
+        }
+
+        const double denom = static_cast<double>(samples_.size());
+        std::cout << "Averaged over " << samples_.size() << " steps:\n";
+        std::cout << "  Density: " << density_accum_ / denom << '\n';
+        std::cout << "  Flow: " << flow_accum_ / denom << '\n';
+        std::cout << "  Avg speed: " << avg_speed_accum_ / denom << '\n';
+        std::cout << "  Lane-change rate: " << lane_change_accum_ / denom
+                  << '\n';
+    }
+
+   private:
+    std::vector<StepMetrics> samples_;
+    double density_accum_ = 0.0;
+    double flow_accum_ = 0.0;
+    double avg_speed_accum_ = 0.0;
+    double lane_change_accum_ = 0.0;
+};
+
 std::vector<std::unique_ptr<Lane>> g_lanes;
 std::vector<std::unique_ptr<Car>> g_cars;
 size_t next_car_id = 0;
+Statistics g_stats;
 
 void init_lanes() {
     int y_mid = SCREEN_CELLS_Y / 2;
@@ -132,12 +224,13 @@ void spawn_cars(double density) {
     }
 }
 
-void sim_step(size_t mt) {
-    if (mt == 0) spawn_cars(0.2);
+void sim_step(double mt) {
+    if (mt == 0) spawn_cars(SPAWN_DENSITY);
 
     std::vector<int> next_v(g_cars.size());
     std::vector<int> next_pos(g_cars.size());
     std::vector<int> next_lane(g_cars.size());
+    size_t lane_changes_this_step = 0;
 
     // Initialize next_lane
     for (size_t i = 0; i < g_cars.size(); i++) {
@@ -167,7 +260,7 @@ void sim_step(size_t mt) {
         v_plan = std::min(v_plan, f_gap);
 
         // R4: Randomization
-        if ((rand() % 100) < (RANDOMIZATION_PROB * 100)) {
+        if ((rand() % 100) < (BREAKING_PROB * 100)) {
             v_plan = std::max(v_plan - 1, 0);
         }
 
@@ -187,9 +280,10 @@ void sim_step(size_t mt) {
         }
 
         if (incentive && improvement && safety && pos_free) {
-            std::cout << "Car " << car->id << " changing lane from "
-                      << car->lane_id << " to " << other_lane->id << "\n";
-            next_lane[i] = other_lane->id;
+            if ((rand() % 100) < (LANE_CHANGE_PROB * 100)) {
+                next_lane[i] = other_lane->id;
+                lane_changes_this_step++;
+            }
         }
 
         next_v[i] = v_plan;
@@ -234,6 +328,9 @@ void sim_step(size_t mt) {
     for (auto& lane : g_lanes) {
         lane->swap_buffers();
     }
+
+    g_stats.record_step(static_cast<double>(mt), g_cars, g_lanes,
+                        lane_changes_this_step);
 }
 
 int main() {
@@ -241,7 +338,7 @@ int main() {
 
     srand(static_cast<unsigned int>(time(nullptr)));
 
-    bool visualize = true;
+    bool visualize = false;
 
     const int WIN_W = SCREEN_CELLS_X * CELL_PIXELS;
     const int WIN_H = SCREEN_CELLS_Y * CELL_PIXELS;
@@ -251,15 +348,15 @@ int main() {
 
     if (visualize) win = CImgDisplay(WIN_W, WIN_H, "Simulation grid");
 
-    for (unsigned long mt = 0; mt < 10000; mt += DELTA) {
-        sim_step(mt);
+    for (double step = 0; step < MAX_TIME_STEP; step += DELTA) {
+        sim_step(step);
 
         if (visualize) {
             draw(grid);
             CImg<unsigned char> zoomed =
                 grid.get_resize(WIN_W, WIN_H, -100, -100, 1);
 
-            std::string iter_text = "Step: " + std::to_string(mt);
+            std::string iter_text = "Step: " + std::to_string(step);
             const unsigned char white[] = {255, 255, 255};
             zoomed.draw_text(WIN_W - 200, 10, iter_text.c_str(), white, 0, 1,
                              24);
@@ -273,11 +370,16 @@ int main() {
 
             win.wait(1000);  // 1 second real-time delay for visualization
         }
-
-        // TODO: Collect statistics
     }
 
-    // TODO: Output statistics
+    try {
+        const std::string stats_file = "stats.csv";
+        g_stats.dump_csv(stats_file);
+        std::cout << "Saved per-step statistics to " << stats_file << "\n";
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to write statistics: " << e.what() << "\n";
+    }
+    g_stats.print_summary();
 
     return 0;
 }
