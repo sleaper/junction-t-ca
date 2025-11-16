@@ -13,7 +13,7 @@ using namespace cimg_library;
 struct Car;
 const int EMPTY_CELL = -1;
 const uint8_t ROAD_COLOR[] = {255, 255, 255};
-const enum LaneType { Left, Right };
+enum class LaneType { Left = 0, Right = 1 };
 
 struct Lane {
     LaneType id;
@@ -24,7 +24,7 @@ struct Lane {
 
     std::vector<int> gap_ahead, gap_behind;
 
-    Lane(int id, int start_x, int start_y);
+    Lane(LaneType id, int start_x, int start_y);
 
     void clear_next();
     void swap_buffers();

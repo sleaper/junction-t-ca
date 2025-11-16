@@ -20,7 +20,7 @@ using namespace cimg_library;
 
 struct Car {
     int id;
-    int lane_id;
+    LaneType lane_id = LaneType::Left;
     int poss;
     int v = 0;
 
@@ -33,30 +33,41 @@ struct StepMetrics {
     double flow = 0.0;
     double avg_speed = 0.0;         // cells per step
     double lane_change_rate = 0.0;  // lane changes per cell per step
+    double left_flow = 0.0;
+    double right_flow = 0.0;
     std::vector<std::vector<int>> lanes;
 };
-
-enum class LaneChangeMode { Symmetric, Asymmetric };
 
 class Statistics {
    public:
     void save_final_statistics(const std::string& path,
                                std::vector<double>& density,
                                std::vector<double>& flow,
-                               std::vector<double>& lane_change) const {
+                               std::vector<double>& lane_change,
+                               std::vector<double>& left_flow,
+                               std::vector<double>& right_flow) const {
         std::ofstream out(path);
         if (!out.is_open()) {
             throw std::runtime_error("Failed to open " + path);
         }
 
-        out << "density,flow,lane_change_rate\n";
+        out << "density,total_flow,lane_change_rate,left_flow,right_flow\n";
 
         for (size_t i = 0; i < density.size(); i++) {
             out << density.at(i) << "," << flow.at(i) << ","
-                << lane_change.at(i) << "\n";
+                << lane_change.at(i) << "," << left_flow.at(i) << ","
+                << right_flow.at(i) << "\n";
         }
     }
 
+    double get_average_left_flow() const {
+        if (samples_.empty()) return 0.0;
+        return left_flow_accum_ / static_cast<double>(samples_.size());
+    }
+    double get_average_right_flow() const {
+        if (samples_.empty()) return 0.0;
+        return right_flow_accum_ / static_cast<double>(samples_.size());
+    }
     double get_average_flow() const {
         if (samples_.empty()) return 0.0;
         return flow_accum_ / static_cast<double>(samples_.size());
@@ -81,7 +92,7 @@ class Statistics {
             occupied_cells +=
                 std::count_if(lane->occ.begin(), lane->occ.end(),
                               [](int id) { return id != EMPTY_CELL; });
-            sample.lanes.push_back(lane->occ);
+            sample.lanes.push_back(lane->occ);  // Save lane occupancy
         }
 
         double total_velocity = 0.0;
@@ -89,41 +100,34 @@ class Statistics {
             total_velocity += car->v;
         }
 
-        sample.density = total_cells > 0
-                             ? occupied_cells / static_cast<double>(total_cells)
-                             : 0.0;
-        sample.flow = total_cells > 0
-                          ? total_velocity / static_cast<double>(total_cells)
-                          : 0.0;
-        sample.avg_speed =
-            cars.empty() ? 0.0
-                         : total_velocity / static_cast<double>(cars.size());
-        sample.lane_change_rate = total_cells > 0
-                                      ? static_cast<double>(lane_changes) /
-                                            static_cast<double>(total_cells)
-                                      : 0.0;
+        double total_left_velocity = 0.0;
+        double total_right_velocity = 0.0;
+        for (const auto& car : cars) {
+            if (car->lane_id == LaneType::Left) {
+                total_left_velocity += car->v;
+            } else {
+                total_right_velocity += car->v;
+            }
+        }
+
+        const double lane_cells = static_cast<double>(MAIN_LANE_LENGTH);
+        sample.left_flow = total_left_velocity / lane_cells;
+        sample.right_flow = total_right_velocity / lane_cells;
+        sample.density = occupied_cells / static_cast<double>(total_cells);
+        sample.flow = (total_left_velocity + total_right_velocity) /
+                      static_cast<double>(total_cells);
+        sample.avg_speed = total_velocity / static_cast<double>(cars.size());
+        sample.lane_change_rate = static_cast<double>(lane_changes) /
+                                  static_cast<double>(total_cells);
 
         density_accum_ += sample.density;
         flow_accum_ += sample.flow;
         avg_speed_accum_ += sample.avg_speed;
         lane_change_accum_ += sample.lane_change_rate;
+        left_flow_accum_ += sample.left_flow;
+        right_flow_accum_ += sample.right_flow;
 
         samples_.push_back(sample);
-    }
-
-    void dump_csv(const std::string& path) const {
-        std::ofstream out(path);
-        if (!out.is_open()) {
-            throw std::runtime_error("Failed to open " + path);
-        }
-
-        out << "model_time,density,flow,avg_speed,lane_change_rate\n";
-
-        for (const auto& sample : samples_) {
-            out << sample.model_time << "," << sample.density << ","
-                << sample.flow << "," << sample.avg_speed << ","
-                << sample.lane_change_rate << "\n";
-        }
     }
 
     void dump_space_time(const std::string& path) const {
@@ -171,6 +175,8 @@ class Statistics {
     double flow_accum_ = 0.0;
     double avg_speed_accum_ = 0.0;
     double lane_change_accum_ = 0.0;
+    double left_flow_accum_ = 0.0;
+    double right_flow_accum_ = 0.0;
 };
 
 std::vector<std::unique_ptr<Lane>> g_lanes;
@@ -178,14 +184,22 @@ std::vector<std::unique_ptr<Car>> g_cars;
 size_t next_car_id = 0;
 Statistics g_stats;
 
+Lane* get_lane(LaneType type) {
+    return g_lanes.at(static_cast<size_t>(type)).get();
+}
+
+LaneType opposite_lane(LaneType type) {
+    return type == LaneType::Left ? LaneType::Right : LaneType::Left;
+}
+
 void init_lanes() {
     int y_mid = SCREEN_CELLS_Y / 2;
 
-    auto a_lane = std::make_unique<Lane>(0, 0, y_mid);
-    auto b_lane = std::make_unique<Lane>(1, 0, y_mid + 1);
+    auto left = std::make_unique<Lane>(LaneType::Left, 0, y_mid);
+    auto right = std::make_unique<Lane>(LaneType::Right, 0, y_mid + 1);
 
-    g_lanes.push_back(std::move(a_lane));
-    g_lanes.push_back(std::move(b_lane));
+    g_lanes.push_back(std::move(left));
+    g_lanes.push_back(std::move(right));
 }
 
 void draw(CImg<unsigned char>& img) {
@@ -228,19 +242,18 @@ int back_gap(const Car* car, const Lane* lane) {
 }
 
 void spawn_cars(double density) {
-    // Spawn n cars in random configuration
-    int n_cars = static_cast<int>(density * MAIN_LANE_LENGTH / CAR_LEN);
+    int n_cars = static_cast<int>(density * MAIN_LANE_LENGTH);
 
     for (size_t i = 0; i < g_lanes.size(); i++) {
         Lane* lane = g_lanes.at(i).get();
         int spawned = 0;
 
-        int rand_pos = rand() % (MAIN_LANE_LENGTH - CAR_LEN);
+        int rand_pos = rand() % (MAIN_LANE_LENGTH);
 
         int attempts = 0;
         const int max_attempts = MAIN_LANE_LENGTH * 10;
         while (spawned < n_cars && attempts < max_attempts) {
-            rand_pos = rand() % (MAIN_LANE_LENGTH - CAR_LEN);
+            rand_pos = rand() % (MAIN_LANE_LENGTH);
             attempts++;
 
             // Check if position is free
@@ -250,12 +263,9 @@ void spawn_cars(double density) {
             car->id = static_cast<int>(next_car_id++);
             car->lane_id = lane->id;
             car->poss = rand_pos;
-            car->v = (rand() % (VMAX + 1));
+            car->v = 0;
 
-            for (int j = 0; j < CAR_LEN; j++) {
-                lane->occ.at(car->poss + j) = car->id;
-            }
-
+            lane->occ.at(car->poss) = car->id;
             g_cars.push_back(std::move(car));
             spawned++;
         }
@@ -263,39 +273,43 @@ void spawn_cars(double density) {
 }
 
 void sim_step(double mt, double density) {
-    if (mt == 0) spawn_cars(density);
-
     std::vector<int> next_v(g_cars.size());
     std::vector<int> next_pos(g_cars.size());
-    std::vector<int> next_lane(g_cars.size());
+    std::vector<LaneType> next_lane(g_cars.size());
     size_t lane_changes_this_step = 0;
 
-    // Initialize next_lane
+    // Init next_lane vector with curr lane for each car
     for (size_t i = 0; i < g_cars.size(); i++) {
         next_lane[i] = g_cars[i]->lane_id;
     }
 
     for (size_t i = 0; i < g_cars.size(); i++) {
         Car* car = g_cars[i].get();
-        Lane* lane = g_lanes.at(car->lane_id).get();
+        Lane* lane = get_lane(car->lane_id);
         int v_plan = car->v;
 
         // Lane change
         int look_ahead = v_plan + 1;
         int look_other_ahead = look_ahead;
+        int look_other_back = VMAX;
 
-        Lane* other_lane = g_lanes.at(1 - car->lane_id).get();
+        Lane* other_lane = get_lane(opposite_lane(car->lane_id));
+
         // T1 somebody in my way
-        bool incentive =
-            (car->lane_id == LaneType::Right || MODE == MODE_TYPE::SYMMETRIC)
-                ? front_gap(car, lane) < look_ahead
-                : true;
+        bool incentive;
+        if (MODE == MODE_TYPE::SYMMETRIC) {
+            incentive = front_gap(car, lane) < look_ahead;
+        } else {
+            incentive = (car->lane_id == LaneType::Right)
+                            ? front_gap(car, lane) < look_ahead
+                            : true;
+        }
 
         // T2 is other lane better?
         bool improvement = front_gap(car, other_lane) > look_other_ahead;
 
         // T3 is it safe?
-        bool safety = back_gap(car, other_lane) > LOOK_OTHER_AHEAD;
+        bool safety = back_gap(car, other_lane) > look_other_back;
 
         if (incentive && improvement && safety) {
             if (((double)rand() / RAND_MAX) < (LANE_CHANGE_PROB)) {
@@ -328,17 +342,12 @@ void sim_step(double mt, double density) {
 
     // Commit updates to all cars
     for (size_t i = 0; i < g_cars.size(); i++) {
-        Lane* target_lane = g_lanes.at(next_lane[i]).get();
-
         g_cars[i]->v = next_v[i];
-        g_cars[i]->poss = next_pos[i];
+        g_cars[i]->poss = next_pos[i] % MAIN_LANE_LENGTH;
         g_cars[i]->lane_id = next_lane[i];
 
-        Lane* lane = g_lanes.at(g_cars[i]->lane_id).get();
-        for (int j = 0; j < CAR_LEN; j++) {
-            int cell = (g_cars[i]->poss + j) % MAIN_LANE_LENGTH;
-            lane->next_occ.at(cell) = g_cars[i]->id;
-        }
+        Lane* lane = get_lane(g_cars[i]->lane_id);
+        lane->next_occ.at(g_cars[i]->poss) = g_cars[i]->id;
     }
 
     for (auto& lane : g_lanes) {
@@ -367,15 +376,25 @@ int main() {
     std::vector<double> flow;
     std::vector<double> lane_change;
     std::vector<double> densities;
+    std::vector<double> left_flow;
+    std::vector<double> right_flow;
 
     for (double density = 0.01; density <= 0.5; density += 0.01) {
         // Reset simulation state
         g_lanes.clear();
         g_cars.clear();
         next_car_id = 0;
-        g_stats = Statistics();
 
         init_lanes();
+        spawn_cars(density);
+
+        // Warmup 1000 steps
+        // for (double step = 0; step < 1000; step += DELTA) {
+        //     sim_step(step, density);
+        // }
+
+        // Start stats after warmup
+        g_stats = Statistics();
 
         for (double step = 0; step < MAX_TIME_STEP; step += DELTA) {
             sim_step(step, density);
@@ -404,12 +423,15 @@ int main() {
         densities.push_back(density);
         flow.push_back(g_stats.get_average_flow());
         lane_change.push_back(g_stats.get_average_lane_change_rate());
+        left_flow.push_back(g_stats.get_average_left_flow());
+        right_flow.push_back(g_stats.get_average_right_flow());
         g_stats.print_summary();
     }
 
     try {
         g_stats.save_final_statistics("final_statistics.csv", densities, flow,
-                                      lane_change);
+                                      lane_change, left_flow, right_flow);
+        // g_stats.dump_space_time("space_time.csv");
     } catch (const std::exception& e) {
         std::cerr << "Error dumping statistics: " << e.what() << '\n';
     }

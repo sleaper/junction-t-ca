@@ -9,7 +9,7 @@
 
 using namespace cimg_library;
 
-Lane::Lane(int id_, int start_x_, int start_y_)
+Lane::Lane(LaneType id_, int start_x_, int start_y_)
     : id(id_),
       start_x(start_x_),
       start_y(start_y_),
@@ -39,7 +39,6 @@ void Lane::draw(CImg<unsigned char>& img) const {
     for (const auto& car_id : occ) {
         if (car_id != EMPTY_CELL) {
             auto [cx, cy] = screen_coords(&car_id - &occ[0]);
-            // img.draw_rectangle(cx, cy, cx + CAR_LEN, cy, red, 3);
             img.draw_point(cx, cy, red, 3);
         }
     }
