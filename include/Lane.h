@@ -13,9 +13,10 @@ using namespace cimg_library;
 struct Car;
 const int EMPTY_CELL = -1;
 const uint8_t ROAD_COLOR[] = {255, 255, 255};
+const enum LaneType { Left, Right };
 
 struct Lane {
-    int id;
+    LaneType id;
     int start_x, start_y;
 
     std::vector<int> occ;       // t

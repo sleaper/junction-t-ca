@@ -21,7 +21,6 @@ def main():
     ax[0].set_title("Fundamental Diagram: Flow vs Density")
     ax[0].set_xlabel("Density (cars/cell)")
     ax[0].set_ylabel("Flow (cars/time step)")
-    ax[0].set_ylim(0, 1)
     ax[0].grid(True)
     ax[1].plot(density, lane_change, marker='o', color='orange')
     ax[1].set_title("Lane Change Rate vs Density")
