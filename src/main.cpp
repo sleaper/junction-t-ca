@@ -41,6 +41,33 @@ struct StepMetrics {
 
 class Statistics {
    public:
+    void save_final_statistics(const std::string& path,
+                               std::vector<double> density,
+                               std::vector<double> flow,
+                               std::vector<double> lane_change) const {
+        std::ofstream out(path);
+        if (!out.is_open()) {
+            throw std::runtime_error("Failed to open " + path);
+        }
+
+        out << "density,flow,lane_change_rate\n";
+
+        for (size_t i = 0; i < density.size(); i++) {
+            out << density[i] << "," << flow[i] << "," << lane_change[i]
+                << "\n";
+        }
+    }
+
+    double get_average_flow() const {
+        if (samples_.empty()) return 0.0;
+        return flow_accum_ / static_cast<double>(samples_.size());
+    }
+
+    double get_average_lane_change_rate() const {
+        if (samples_.empty()) return 0.0;
+        return lane_change_accum_ / static_cast<double>(samples_.size());
+    }
+
     void record_step(double model_time,
                      const std::vector<std::unique_ptr<Car>>& cars,
                      const std::vector<std::unique_ptr<Lane>>& lanes,
@@ -228,8 +255,11 @@ void spawn_cars(double density) {
 
         int rand_pos = rand() % (MAIN_LANE_LENGTH - CAR_LEN);
 
-        while (spawned < n_cars) {
+        int attempts = 0;
+        const int max_attempts = MAIN_LANE_LENGTH * 10;
+        while (spawned < n_cars && attempts < max_attempts) {
             rand_pos = rand() % (MAIN_LANE_LENGTH - CAR_LEN);
+            attempts++;
 
             // Check if position is free
             bool pos_free = true;
@@ -240,12 +270,12 @@ void spawn_cars(double density) {
                 }
             }
 
-            if (pos_free && ((double)rand() / RAND_MAX) < density) {
+            if (pos_free) {
                 auto car = std::make_unique<Car>();
                 car->id = static_cast<int>(next_car_id++);
                 car->lane_id = lane->id;
                 car->rear_cell = rand_pos;
-                car->v = 0;
+                car->v = (rand() % (VMAX + 1));
 
                 for (int j = 0; j < CAR_LEN; j++) {
                     lane->occ.at(car->rear_cell + j) = car->id;
@@ -253,14 +283,13 @@ void spawn_cars(double density) {
 
                 g_cars.push_back(std::move(car));
                 spawned++;
-                if (spawned >= n_cars) break;
             }
         }
     }
 }
 
-void sim_step(double mt) {
-    if (mt == 0) spawn_cars(SPAWN_DENSITY);
+void sim_step(double mt, double density, double sts, double bp, double lcp) {
+    if (mt == 0) spawn_cars(density);
 
     std::vector<int> next_v(g_cars.size());
     std::vector<int> next_pos(g_cars.size());
@@ -283,7 +312,7 @@ void sim_step(double mt) {
         // R1: slow-to-start
         if (car->v == 0 && car->prev_front_dist == 0 && f_gap > 0) {
             // With probability q, hesitate
-            if (((double)rand() / RAND_MAX) < SLOW_TO_START_PROB) {
+            if (((double)rand() / RAND_MAX) < sts) {
                 hesitate = true;
             }
         }
@@ -295,7 +324,7 @@ void sim_step(double mt) {
         v_plan = std::min(v_plan, f_gap);
 
         // R4: Randomization
-        if (((double)rand() / RAND_MAX) < BREAKING_PROB) {
+        if (((double)rand() / RAND_MAX) < bp) {
             v_plan = std::max(v_plan - 1, 0);
         }
 
@@ -315,7 +344,7 @@ void sim_step(double mt) {
         }
 
         if (incentive && improvement && safety && pos_free) {
-            if (((double)rand() / RAND_MAX) < (LANE_CHANGE_PROB)) {
+            if (((double)rand() / RAND_MAX) < (lcp)) {
                 next_lane[i] = other_lane->id;
                 lane_changes_this_step++;
             }
@@ -383,38 +412,57 @@ int main() {
 
     if (visualize) win = CImgDisplay(WIN_W, WIN_H, "Simulation grid");
 
-    for (double step = 0; step < MAX_TIME_STEP; step += DELTA) {
-        sim_step(step);
+    std::vector<double> flow;
+    std::vector<double> lane_change;
 
-        if (visualize) {
-            draw(grid);
-            CImg<unsigned char> zoomed =
-                grid.get_resize(WIN_W, WIN_H, -100, -100, 1);
+    for (const auto& density : SPAWN_DENSITIES) {
+        // Reset simulation state
+        g_lanes.clear();
+        g_cars.clear();
+        next_car_id = 0;
+        g_stats = Statistics();
 
-            std::string iter_text = "Step: " + std::to_string(step);
-            const unsigned char white[] = {255, 255, 255};
-            zoomed.draw_text(WIN_W - 200, 10, iter_text.c_str(), white, 0, 1,
-                             24);
+        init_lanes();
 
-            win.display(zoomed);
+        for (double step = 0; step < MAX_TIME_STEP; step += DELTA) {
+            sim_step(step, density, SLOW_TO_START_PROB, BREAKING_PROB,
+                     LANE_CHANGE_PROB);
 
-            if (win.is_closed()) break;
-            if (win.resize()) {
-                win.resize(WIN_W, WIN_H);
+            if (visualize) {
+                draw(grid);
+                CImg<unsigned char> zoomed =
+                    grid.get_resize(WIN_W, WIN_H, -100, -100, 1);
+
+                std::string iter_text = "Step: " + std::to_string(step);
+                const unsigned char white[] = {255, 255, 255};
+                zoomed.draw_text(WIN_W - 200, 10, iter_text.c_str(), white, 0,
+                                 1, 24);
+
+                win.display(zoomed);
+
+                if (win.is_closed()) break;
+                if (win.resize()) {
+                    win.resize(WIN_W, WIN_H);
+                }
+
+                win.wait(1000);  // 1 second real-time delay for visualization
             }
-
-            win.wait(1000);  // 1 second real-time delay for visualization
         }
+
+        flow.push_back(g_stats.get_average_flow());
+        lane_change.push_back(g_stats.get_average_lane_change_rate());
+        g_stats.print_summary();
     }
 
+    // Output final statistics to csv
     try {
-        std::string spacetime_path = "spacetime.csv";
-        g_stats.dump_space_time(spacetime_path);
-        std::cout << "Saved space-time data to " << spacetime_path << "\n";
+        g_stats.save_final_statistics(
+            "final_statistics.csv", SPAWN_DENSITIES,
+            std::vector<double>(flow.begin(), flow.end()),
+            std::vector<double>(lane_change.begin(), lane_change.end()));
     } catch (const std::exception& e) {
-        std::cerr << "Failed to write statistics: " << e.what() << "\n";
+        std::cerr << "Error dumping statistics: " << e.what() << '\n';
     }
-    g_stats.print_summary();
 
     return 0;
 }
