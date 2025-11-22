@@ -9,6 +9,8 @@ constexpr double CELL_SIZE_M = 7.5;  // in meters
 constexpr int DELTA = 1;               // 1 second of model time per step
 constexpr int MAIN_LANE_LENGTH = 133;  // in cells
 constexpr int VMAX = 5;
+constexpr int LOOK_AHEAD = 5;
+constexpr int LOOK_OTHER_BACK = 5;
 
 constexpr double BREAKING_PROB = 0.5;
 constexpr double LANE_CHANGE_PROB = 1;
