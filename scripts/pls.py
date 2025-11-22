@@ -32,6 +32,7 @@ def main():
     ax[1].set_title("Lane Change Rate vs Density")
     ax[1].set_xlabel("Density (cars/cell)")
     ax[1].set_ylabel("Lane Change Rate (changes/time step)")
+    ax[1].set_ylim(0, 0.005)
     ax[1].grid(True)
     plt.tight_layout()
     plt.savefig("traffic_flow_lane_change.png", dpi=150, bbox_inches="tight")

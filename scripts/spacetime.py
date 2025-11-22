@@ -18,8 +18,8 @@ def main():
     num_lanes = len(set(lanes))
     print(f"Time steps: {max_time + 1}, Positions: {max_pos + 1}, Lanes: {num_lanes}")
 
-    display_time = min(800, max_time + 1)
-    display_pos = min(800, max_pos + 1)
+    display_time = min(400, max_time + 1)
+    display_pos = min(400, max_pos + 1)
 
     # Create space-time matrices: rows = time, columns = position
     matrices = {}

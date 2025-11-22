@@ -37,12 +37,12 @@ int main() {
         sim.spawn_cars(density);
 
         // Warmup 1000 steps
-        // for (double step = 0; step < 1000; step += DELTA) {
-        //     sim.step(step, density);
-        // }
+        for (double step = 0; step < WARMUP_STEPS; step += DELTA) {
+            sim.step(step, density, false);
+        }
 
         for (double step = 0; step < MAX_TIME_STEP; step += DELTA) {
-            sim.step(step, density);
+            sim.step(step, density, true);
 
             if (visualize) {
                 sim.draw(grid);
@@ -79,7 +79,7 @@ int main() {
         stats_saver.save_final_statistics("final_statistics.csv", densities,
                                           flow, lane_change, left_flow,
                                           right_flow);
-        // g_stats.dump_space_time("space_time.csv");
+        // sim.get_stats().dump_space_time("space_time.csv");
     } catch (const std::exception& e) {
         std::cerr << "Error dumping statistics: " << e.what() << '\n';
     }

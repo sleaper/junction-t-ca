@@ -105,7 +105,7 @@ void Simulation::spawn_cars(double density) {
     }
 }
 
-void Simulation::step(double mt, double density) {
+void Simulation::step(double mt, double density, bool collect_stats) {
     std::vector<int> next_v(cars_.size());
     std::vector<int> next_pos(cars_.size());
     std::vector<LaneType> next_lane(cars_.size());
@@ -187,6 +187,7 @@ void Simulation::step(double mt, double density) {
         lane->swap_buffers();
     }
 
-    stats_.record_step(static_cast<double>(mt), cars_, lanes_,
-                       lane_changes_this_step);
+    if (collect_stats)
+        stats_.record_step(static_cast<double>(mt), cars_, lanes_,
+                           lane_changes_this_step);
 }
