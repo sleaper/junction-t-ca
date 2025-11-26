@@ -48,7 +48,8 @@ int Simulation::front_gap(const Car* car, const Lane* lane) {
     int car_pos = car->poss;
 
     for (int i = 1; i <= MAIN_LANE_LENGTH; i++) {
-        int cell = (car_pos + i) % MAIN_LANE_LENGTH;  // wrap around
+        int cell = car_pos + i;
+        if (cell >= MAIN_LANE_LENGTH) cell -= MAIN_LANE_LENGTH;
         if (lane->occ.at(cell) != EMPTY_CELL && lane->occ.at(cell) != car->id) {
             return gap;
         }
@@ -63,8 +64,8 @@ int Simulation::back_gap(const Car* car, const Lane* lane) {
     int car_pos = car->poss;
 
     for (int i = 1; i <= MAIN_LANE_LENGTH; i++) {
-        int cell =
-            (car_pos - i + MAIN_LANE_LENGTH) % MAIN_LANE_LENGTH;  // wrap around
+        int cell = car_pos - i;
+        if (cell < 0) cell += MAIN_LANE_LENGTH;
         if (lane->occ.at(cell) != EMPTY_CELL && lane->occ.at(cell) != car->id) {
             return gap;
         }
@@ -109,60 +110,66 @@ void Simulation::spawn_cars(double density, double aggressive_ratio) {
 
 void Simulation::step(double mt, double density, bool collect_stats,
                       bool asymmetric) {
-    std::vector<int> next_v(cars_.size());
-    std::vector<int> next_pos(cars_.size());
-    std::vector<LaneType> next_lane(cars_.size());
+    // 1. Lane Change
+    std::vector<LaneType> planned_lanes(cars_.size());
     size_t lane_changes_this_step = 0;
-
-    // Init next_lane vector with curr lane for each car
-    for (size_t i = 0; i < cars_.size(); i++) {
-        next_lane[i] = cars_[i]->lane_id;
-    }
-
     for (size_t i = 0; i < cars_.size(); i++) {
         Car* car = cars_[i].get();
         Lane* lane = get_lane(car->lane_id);
-        int v_plan = car->v;
-
-        // Lane change
-        int look_ahead = v_plan + 1;
-        int look_other_ahead = look_ahead;
-        int look_other_back = VMAX;
-
         Lane* other_lane = get_lane(opposite_lane(car->lane_id));
 
-        // T1 somebody in my way
+        planned_lanes[i] = car->lane_id;
+
+        int v_plan = car->v;
+        int look_ahead = v_plan + 1;
+        int look_other_ahead = look_ahead;
+        int look_other_back = car->aggressive ? 0 : VMAX;
+
         bool incentive;
         if (!asymmetric) {
             incentive = front_gap(car, lane) < look_ahead;
         } else {
             incentive = (car->lane_id == LaneType::Right)
                             ? front_gap(car, lane) < look_ahead
-                            : true;
+                            : true;  // Keep Right Rule
         }
 
-        // T2 is other lane better?
         bool improvement = front_gap(car, other_lane) > look_other_ahead;
 
-        // T3 is it safe?
-        if (car->aggressive) {
-            look_other_back = 1;
-        }
         bool safety = back_gap(car, other_lane) > look_other_back;
 
         if (incentive && improvement && safety) {
-            if (((double)rand() / RAND_MAX) < (LANE_CHANGE_PROB)) {
-                next_lane[i] = other_lane->id;
-                lane = other_lane;
+            if (((double)rand() / RAND_MAX) < LANE_CHANGE_PROB) {
+                planned_lanes[i] = other_lane->id;
                 lane_changes_this_step++;
             }
         }
+    }
 
-        // Movement in lane
-        // S1: Acceleration
-        v_plan = std::min(car->v + 1, VMAX);
+    for (auto& lane : lanes_) {
+        std::fill(lane->occ.begin(), lane->occ.end(), EMPTY_CELL);
+    }
 
-        // S2: Deceleration due to other cars
+    // 2. Place cars in their NEW lanes
+    for (size_t i = 0; i < cars_.size(); i++) {
+        cars_[i]->lane_id = planned_lanes[i];
+
+        Lane* lane = get_lane(cars_[i]->lane_id);
+        lane->occ.at(cars_[i]->poss) = cars_[i]->id;
+    }
+
+    // 3. Update velocities and positions based on the NEW lanes
+    std::vector<int> next_v(cars_.size());
+    std::vector<int> next_pos(cars_.size());
+
+    for (size_t i = 0; i < cars_.size(); i++) {
+        Car* car = cars_[i].get();
+        Lane* lane = get_lane(car->lane_id);
+
+        // S1: acceleration
+        int v_plan = std::min(car->v + 1, VMAX);
+
+        // S2: deceleration
         v_plan = std::min(v_plan, front_gap(car, lane));
 
         // S3: Randomization
@@ -174,16 +181,11 @@ void Simulation::step(double mt, double density, bool collect_stats,
         next_pos[i] = car->poss + v_plan;
     }
 
-    // Prepare for next step
-    for (auto& lane : lanes_) {
-        lane->clear_next();
-    }
+    for (auto& lane : lanes_) lane->clear_next();
 
-    // Commit updates to all cars
     for (size_t i = 0; i < cars_.size(); i++) {
         cars_[i]->v = next_v[i];
         cars_[i]->poss = next_pos[i] % MAIN_LANE_LENGTH;
-        cars_[i]->lane_id = next_lane[i];
 
         Lane* lane = get_lane(cars_[i]->lane_id);
         lane->next_occ.at(cars_[i]->poss) = cars_[i]->id;
