@@ -20,11 +20,6 @@ struct StepMetrics {
 
 class Statistics {
    public:
-    double get_average_left_flow() const;
-    double get_average_right_flow() const;
-    double get_average_flow() const;
-    double get_average_lane_change_rate() const;
-
     void record_step(double model_time,
                      const std::vector<std::unique_ptr<Car>>& cars,
                      const std::vector<std::unique_ptr<Lane>>& lanes,
@@ -32,6 +27,7 @@ class Statistics {
 
     void dump_space_time(const std::string& path) const;
     void print_csv() const;
+    void print_summary() const;
 
    private:
     std::vector<StepMetrics> samples_;

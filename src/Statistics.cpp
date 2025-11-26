@@ -87,3 +87,21 @@ void Statistics::print_csv() const {
               << left_flow_accum_ / samples_.size() << ","
               << right_flow_accum_ / samples_.size() << "\n";
 }
+
+void Statistics::print_summary() const {
+    if (samples_.empty()) {
+        std::cerr << "No samples recorded.\n";
+        return;
+    }
+
+    std::cout << "=== Simulation Summary ===\n";
+    std::cout << "Average Density: " << density_accum_ / samples_.size()
+              << "\n";
+    std::cout << "Average Flow: " << flow_accum_ / samples_.size() << "\n";
+    std::cout << "Average Lane Change Rate: "
+              << lane_change_accum_ / samples_.size() << "\n";
+    std::cout << "Average Left Lane Flow: "
+              << left_flow_accum_ / samples_.size() << "\n";
+    std::cout << "Average Right Lane Flow: "
+              << right_flow_accum_ / samples_.size() << "\n";
+}
