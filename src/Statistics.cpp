@@ -7,45 +7,6 @@
 
 #include "config.h"
 
-void Statistics::save_final_statistics(const std::string& path,
-                                       std::vector<double>& density,
-                                       std::vector<double>& flow,
-                                       std::vector<double>& lane_change,
-                                       std::vector<double>& left_flow,
-                                       std::vector<double>& right_flow) const {
-    std::ofstream out(path);
-    if (!out.is_open()) {
-        throw std::runtime_error("Failed to open " + path);
-    }
-
-    out << "density,total_flow,lane_change_rate,left_flow,right_flow\n";
-
-    for (size_t i = 0; i < density.size(); i++) {
-        out << density.at(i) << "," << flow.at(i) << "," << lane_change.at(i)
-            << "," << left_flow.at(i) << "," << right_flow.at(i) << "\n";
-    }
-}
-
-double Statistics::get_average_left_flow() const {
-    if (samples_.empty()) return 0.0;
-    return left_flow_accum_ / static_cast<double>(samples_.size());
-}
-
-double Statistics::get_average_right_flow() const {
-    if (samples_.empty()) return 0.0;
-    return right_flow_accum_ / static_cast<double>(samples_.size());
-}
-
-double Statistics::get_average_flow() const {
-    if (samples_.empty()) return 0.0;
-    return flow_accum_ / static_cast<double>(samples_.size());
-}
-
-double Statistics::get_average_lane_change_rate() const {
-    if (samples_.empty()) return 0.0;
-    return lane_change_accum_ / static_cast<double>(samples_.size());
-}
-
 void Statistics::record_step(double model_time,
                              const std::vector<std::unique_ptr<Car>>& cars,
                              const std::vector<std::unique_ptr<Lane>>& lanes,
@@ -113,16 +74,16 @@ void Statistics::dump_space_time(const std::string& path) const {
     }
 }
 
-void Statistics::print_summary() const {
+void Statistics::print_csv() const {
     if (samples_.empty()) {
-        std::cout << "No statistics collected.\n";
+        std::cerr << "No samples recorded.\n";
         return;
     }
 
-    const double denom = static_cast<double>(samples_.size());
-    std::cout << "Averaged over " << samples_.size() << " steps:\n";
-    std::cout << "  Density: " << density_accum_ / denom << '\n';
-    std::cout << "  Flow: " << flow_accum_ / denom << '\n';
-    std::cout << "  Avg speed: " << avg_speed_accum_ / denom << '\n';
-    std::cout << "  Lane-change rate: " << lane_change_accum_ / denom << '\n';
+    std::cout << "density,flow,lane_change_rate,left_flow,right_flow\n";
+    std::cout << density_accum_ / samples_.size() << ","
+              << flow_accum_ / samples_.size() << ","
+              << lane_change_accum_ / samples_.size() << ","
+              << left_flow_accum_ / samples_.size() << ","
+              << right_flow_accum_ / samples_.size() << "\n";
 }

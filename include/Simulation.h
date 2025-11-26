@@ -15,7 +15,7 @@ class Simulation {
    public:
     Simulation();
     void reset();
-    void spawn_cars(double density);
+    void spawn_cars(double density, double aggressive_ratio);
     void step(double model_time, double density, bool collect_stats);
     void draw(CImg<unsigned char>& img);
 

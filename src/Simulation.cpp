@@ -74,7 +74,7 @@ int Simulation::back_gap(const Car* car, const Lane* lane) {
     return gap;
 }
 
-void Simulation::spawn_cars(double density) {
+void Simulation::spawn_cars(double density, double aggressive_ratio) {
     int n_cars = static_cast<int>(density * MAIN_LANE_LENGTH);
 
     for (size_t i = 0; i < lanes_.size(); i++) {
@@ -96,6 +96,8 @@ void Simulation::spawn_cars(double density) {
             car->id = static_cast<int>(next_car_id_++);
             car->lane_id = lane->id;
             car->poss = rand_pos;
+            car->aggressive =
+                ((double)rand() / RAND_MAX) < aggressive_ratio ? true : false;
             car->v = 0;
 
             lane->occ.at(car->poss) = car->id;
@@ -142,6 +144,9 @@ void Simulation::step(double mt, double density, bool collect_stats) {
         bool improvement = front_gap(car, other_lane) > look_other_ahead;
 
         // T3 is it safe?
+        if (car->aggressive) {
+            look_other_back = 1;
+        }
         bool safety = back_gap(car, other_lane) > look_other_back;
 
         if (incentive && improvement && safety) {

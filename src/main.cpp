@@ -24,65 +24,40 @@ int main() {
 
     if (visualize) win = CImgDisplay(WIN_W, WIN_H, "Simulation grid");
 
-    std::vector<double> flow;
-    std::vector<double> lane_change;
-    std::vector<double> densities;
-    std::vector<double> left_flow;
-    std::vector<double> right_flow;
-
     Simulation sim;
 
-    for (double density = 0.01; density <= 0.5; density += 0.01) {
-        sim.reset();
-        sim.spawn_cars(density);
+    sim.reset();
+    sim.spawn_cars(density, ratio);  // get here from command line args
 
-        // Warmup 1000 steps
-        for (double step = 0; step < WARMUP_STEPS; step += DELTA) {
-            sim.step(step, density, false);
-        }
+    // Warmup 1000 steps
+    for (double step = 0; step < WARMUP_STEPS; step += DELTA) {
+        sim.step(step, density, false);
+    }
 
-        for (double step = 0; step < MAX_TIME_STEP; step += DELTA) {
-            sim.step(step, density, true);
+    for (double step = 0; step < MAX_TIME_STEP; step += DELTA) {
+        sim.step(step, density, true);
 
-            if (visualize) {
-                sim.draw(grid);
-                CImg<unsigned char> zoomed =
-                    grid.get_resize(WIN_W, WIN_H, -100, -100, 1);
+        if (visualize) {
+            sim.draw(grid);
+            CImg<unsigned char> zoomed =
+                grid.get_resize(WIN_W, WIN_H, -100, -100, 1);
 
-                std::string iter_text = "Step: " + std::to_string(step);
-                const unsigned char white[] = {255, 255, 255};
-                zoomed.draw_text(WIN_W - 200, 10, iter_text.c_str(), white, 0,
-                                 1, 24);
+            std::string iter_text = "Step: " + std::to_string(step);
+            const unsigned char white[] = {255, 255, 255};
+            zoomed.draw_text(WIN_W - 200, 10, iter_text.c_str(), white, 0, 1,
+                             24);
 
-                win.display(zoomed);
+            win.display(zoomed);
 
-                if (win.is_closed()) break;
-                if (win.resize()) {
-                    win.resize(WIN_W, WIN_H);
-                }
-
-                win.wait(1000);  // 1 second real-time delay for visualization
+            if (win.is_closed()) break;
+            if (win.resize()) {
+                win.resize(WIN_W, WIN_H);
             }
+
+            win.wait(1000);  // 1 second real-time delay for visualization
         }
-
-        const auto& stats = sim.get_stats();
-        densities.push_back(density);
-        flow.push_back(stats.get_average_flow());
-        lane_change.push_back(stats.get_average_lane_change_rate());
-        left_flow.push_back(stats.get_average_left_flow());
-        right_flow.push_back(stats.get_average_right_flow());
-        stats.print_summary();
     }
 
-    try {
-        Statistics stats_saver;
-        stats_saver.save_final_statistics("final_statistics.csv", densities,
-                                          flow, lane_change, left_flow,
-                                          right_flow);
-        // sim.get_stats().dump_space_time("space_time.csv");
-    } catch (const std::exception& e) {
-        std::cerr << "Error dumping statistics: " << e.what() << '\n';
-    }
-
+    sim.get_stats().print_csv();
     return 0;
 }
