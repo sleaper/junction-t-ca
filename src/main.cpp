@@ -35,11 +35,12 @@ int main(int argc, char* argv[]) {
     double aggressive_ratio = 0.0;
     int warmup_steps = WARMUP_STEPS;
     int simulation_steps = MAX_TIME_STEP;
+    bool asymmetric = false;
     bool visualize = false;
     bool print_csv = true;
 
     int opt;
-    while ((opt = getopt(argc, argv, "d:a:w:s:pvh")) != -1) {
+    while ((opt = getopt(argc, argv, "d:a:w:s:pvyh")) != -1) {
         switch (opt) {
             case 'd':
                 try {
@@ -100,6 +101,9 @@ int main(int argc, char* argv[]) {
             case 'p':
                 print_csv = true;
                 break;
+            case 'y':
+                asymmetric = true;
+                break;
             case 'h':
                 print_usage(argv[0]);
                 return 0;
@@ -124,11 +128,11 @@ int main(int argc, char* argv[]) {
 
     // Warmup steps
     for (double step = 0; step < warmup_steps; step += DELTA) {
-        sim.step(step, density, false);
+        sim.step(step, density, false, asymmetric);
     }
 
     for (double step = 0; step < simulation_steps; step += DELTA) {
-        sim.step(step, density, true);
+        sim.step(step, density, true, asymmetric);
 
         if (visualize) {
             sim.draw(grid);

@@ -6,7 +6,7 @@ constexpr int SCREEN_CELLS_Y = 200;
 constexpr int CELL_PIXELS = 10;  // in pixels
 
 constexpr double CELL_SIZE_M = 7.5;     // in meters
-constexpr int MAIN_LANE_LENGTH = 1000;  // in cells
+constexpr int MAIN_LANE_LENGTH = 1200;  // in cells
 constexpr int DELTA = 1;                // 1 second of model time per step
 constexpr int VMAX = 5;
 

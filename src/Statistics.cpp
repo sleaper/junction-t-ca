@@ -24,6 +24,17 @@ void Statistics::record_step(double model_time,
         sample.lanes.push_back(lane->occ);  // Save lane occupancy
     }
 
+    long aggressive_drivers = 0;
+    for (const auto& car : cars) {
+        if (car->aggressive) {
+            aggressive_drivers++;
+        }
+    }
+    sample.aggressive = cars.size() > 0
+                            ? static_cast<double>(aggressive_drivers) /
+                                  static_cast<double>(cars.size())
+                            : 0.0;
+
     double total_left_velocity = 0.0;
     double total_right_velocity = 0.0;
     for (const auto& car : cars) {
@@ -44,6 +55,7 @@ void Statistics::record_step(double model_time,
         static_cast<double>(lane_changes) / static_cast<double>(total_cells);
 
     density_accum_ += sample.density;
+    aggressive_accum_ += sample.aggressive;
     flow_accum_ += sample.flow;
     lane_change_accum_ += sample.lane_change_rate;
     left_flow_accum_ += sample.left_flow;
@@ -80,8 +92,10 @@ void Statistics::print_csv() const {
         return;
     }
 
-    std::cout << "density,flow,lane_change_rate,left_flow,right_flow\n";
+    std::cout
+        << "density,aggressive,flow,lane_change_rate,left_flow,right_flow\n";
     std::cout << density_accum_ / samples_.size() << ","
+              << aggressive_accum_ / samples_.size() << ","
               << flow_accum_ / samples_.size() << ","
               << lane_change_accum_ / samples_.size() << ","
               << left_flow_accum_ / samples_.size() << ","

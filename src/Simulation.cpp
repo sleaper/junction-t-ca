@@ -107,7 +107,8 @@ void Simulation::spawn_cars(double density, double aggressive_ratio) {
     }
 }
 
-void Simulation::step(double mt, double density, bool collect_stats) {
+void Simulation::step(double mt, double density, bool collect_stats,
+                      bool asymmetric) {
     std::vector<int> next_v(cars_.size());
     std::vector<int> next_pos(cars_.size());
     std::vector<LaneType> next_lane(cars_.size());
@@ -125,14 +126,14 @@ void Simulation::step(double mt, double density, bool collect_stats) {
 
         // Lane change
         int look_ahead = v_plan + 1;
-        int look_other_ahead = LOOK_AHEAD;
-        int look_other_back = LOOK_OTHER_BACK;
+        int look_other_ahead = look_ahead;
+        int look_other_back = VMAX;
 
         Lane* other_lane = get_lane(opposite_lane(car->lane_id));
 
         // T1 somebody in my way
         bool incentive;
-        if (MODE == MODE_TYPE::SYMMETRIC) {
+        if (!asymmetric) {
             incentive = front_gap(car, lane) < look_ahead;
         } else {
             incentive = (car->lane_id == LaneType::Right)

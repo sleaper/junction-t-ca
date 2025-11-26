@@ -11,6 +11,7 @@
 struct StepMetrics {
     double model_time = 0.0;
     double density = 0.0;
+    double aggressive = 0.0;
     double flow = 0.0;
     double lane_change_rate = 0.0;  // lane changes per cell per step
     double left_flow = 0.0;
@@ -32,6 +33,7 @@ class Statistics {
    private:
     std::vector<StepMetrics> samples_;
     double density_accum_ = 0.0;
+    double aggressive_accum_ = 0.0;
     double flow_accum_ = 0.0;
     double avg_speed_accum_ = 0.0;
     double lane_change_accum_ = 0.0;

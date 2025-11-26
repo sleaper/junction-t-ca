@@ -16,7 +16,8 @@ class Simulation {
     Simulation();
     void reset();
     void spawn_cars(double density, double aggressive_ratio);
-    void step(double model_time, double density, bool collect_stats);
+    void step(double model_time, double density, bool collect_stats,
+              bool asymmetric);
     void draw(CImg<unsigned char>& img);
 
     const Statistics& get_stats() const { return stats_; }
