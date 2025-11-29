@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
 
     if (print_csv) {
         sim.get_stats().print_csv();
-        // sim.get_stats().dump_space_time("space_time.csv");
+        sim.get_stats().dump_space_time("space_time.csv");
     } else {
         sim.get_stats().print_summary();
     }

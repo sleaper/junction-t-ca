@@ -17,11 +17,11 @@ def main():
         
         ax.scatter(lane_data["time"], lane_data["position"], c='black', s=1, marker='s')
         
-        ax.set_title(f"Lane {lane}")
-        ax.set_xlabel("Time")
+        ax.set_title(f"{'Left' if lane == 0 else 'Right'} Lane")
+        ax.set_xlabel("Time (steps)")
         ax.set_ylim(400, 0)
 
-    axes[0].set_ylabel("Position")
+    axes[0].set_ylabel("Position (cells)")
     plt.tight_layout()
     plt.savefig("spacetime_diagram.png")
     print("Saved space-time diagram to spacetime_diagram.png")
