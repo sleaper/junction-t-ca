@@ -108,8 +108,7 @@ void Simulation::spawn_cars(double density, double aggressive_ratio) {
     }
 }
 
-void Simulation::step(double mt, double density, bool collect_stats,
-                      bool asymmetric) {
+void Simulation::step(double mt, bool collect_stats, bool asymmetric) {
     // 1. Lane Change
     std::vector<LaneType> planned_lanes(cars_.size());
     size_t lane_changes_this_step = 0;
@@ -131,14 +130,15 @@ void Simulation::step(double mt, double density, bool collect_stats,
         } else {
             incentive = (car->lane_id == LaneType::Right)
                             ? front_gap(car, lane) < look_ahead
-                            : true;  // Keep Right Rule
+                            : true;
         }
 
-        bool improvement = front_gap(car, other_lane) > look_other_ahead;
+        bool improvement = front_gap(car, other_lane) >= look_other_ahead;
+        bool safety = back_gap(car, other_lane) >= look_other_back;
 
-        bool safety = back_gap(car, other_lane) > look_other_back;
+        bool target_free = other_lane->occ.at(car->poss) == EMPTY_CELL;
 
-        if (incentive && improvement && safety) {
+        if (incentive && improvement && safety && target_free) {
             if (((double)rand() / RAND_MAX) < LANE_CHANGE_PROB) {
                 planned_lanes[i] = other_lane->id;
                 lane_changes_this_step++;

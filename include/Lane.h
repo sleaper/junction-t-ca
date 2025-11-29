@@ -22,8 +22,6 @@ struct Lane {
     std::vector<int> occ;       // t
     std::vector<int> next_occ;  // t+1
 
-    std::vector<int> gap_ahead, gap_behind;
-
     Lane(LaneType id, int start_x, int start_y);
 
     void clear_next();

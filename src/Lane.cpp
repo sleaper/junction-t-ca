@@ -14,9 +14,7 @@ Lane::Lane(LaneType id_, int start_x_, int start_y_)
       start_x(start_x_),
       start_y(start_y_),
       occ(MAIN_LANE_LENGTH, EMPTY_CELL),
-      next_occ(MAIN_LANE_LENGTH, EMPTY_CELL),
-      gap_ahead(MAIN_LANE_LENGTH, 0),
-      gap_behind(MAIN_LANE_LENGTH, 0) {}
+      next_occ(MAIN_LANE_LENGTH, EMPTY_CELL) {}
 
 std::pair<int, int> Lane::screen_coords(size_t pos) const {
     return {start_x + static_cast<int>(pos), start_y};
