@@ -128,11 +128,11 @@ int main(int argc, char* argv[]) {
 
     // Warmup steps
     for (double step = 0; step < warmup_steps; step += DELTA) {
-        sim.step(step, density, false, asymmetric);
+        sim.step(step, false, asymmetric);
     }
 
     for (double step = 0; step < simulation_steps; step += DELTA) {
-        sim.step(step, density, true, asymmetric);
+        sim.step(step, true, asymmetric);
 
         if (visualize) {
             sim.draw(grid);

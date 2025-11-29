@@ -43,38 +43,6 @@ void Simulation::draw(CImg<unsigned char>& img) {
     }
 }
 
-int Simulation::front_gap(const Car* car, const Lane* lane) {
-    int gap = 0;
-    int car_pos = car->poss;
-
-    for (int i = 1; i <= MAIN_LANE_LENGTH; i++) {
-        int cell = car_pos + i;
-        if (cell >= MAIN_LANE_LENGTH) cell -= MAIN_LANE_LENGTH;
-        if (lane->occ.at(cell) != EMPTY_CELL && lane->occ.at(cell) != car->id) {
-            return gap;
-        }
-        gap++;
-    }
-
-    return gap;
-}
-
-int Simulation::back_gap(const Car* car, const Lane* lane) {
-    int gap = 0;
-    int car_pos = car->poss;
-
-    for (int i = 1; i <= MAIN_LANE_LENGTH; i++) {
-        int cell = car_pos - i;
-        if (cell < 0) cell += MAIN_LANE_LENGTH;
-        if (lane->occ.at(cell) != EMPTY_CELL && lane->occ.at(cell) != car->id) {
-            return gap;
-        }
-        gap++;
-    }
-
-    return gap;
-}
-
 void Simulation::spawn_cars(double density, double aggressive_ratio) {
     int n_cars = static_cast<int>(density * MAIN_LANE_LENGTH);
 
@@ -126,15 +94,15 @@ void Simulation::step(double mt, bool collect_stats, bool asymmetric) {
 
         bool incentive;
         if (!asymmetric) {
-            incentive = front_gap(car, lane) < look_ahead;
+            incentive = car->front_gap(lane) < look_ahead;
         } else {
             incentive = (car->lane_id == LaneType::Right)
-                            ? front_gap(car, lane) < look_ahead
+                            ? car->front_gap(lane) < look_ahead
                             : true;
         }
 
-        bool improvement = front_gap(car, other_lane) >= look_other_ahead;
-        bool safety = back_gap(car, other_lane) >= look_other_back;
+        bool improvement = car->front_gap(other_lane) >= look_other_ahead;
+        bool safety = car->back_gap(other_lane) >= look_other_back;
 
         bool target_free = other_lane->occ.at(car->poss) == EMPTY_CELL;
 
@@ -170,7 +138,7 @@ void Simulation::step(double mt, bool collect_stats, bool asymmetric) {
         int v_plan = std::min(car->v + 1, VMAX);
 
         // S2: deceleration
-        v_plan = std::min(v_plan, front_gap(car, lane));
+        v_plan = std::min(v_plan, car->front_gap(lane));
 
         // S3: Randomization
         if (v_plan > 0 && ((double)rand() / RAND_MAX) < BREAKING_PROB) {

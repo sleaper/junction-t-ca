@@ -18,7 +18,7 @@ class Simulation {
     void spawn_cars(double density, double aggressive_ratio);
     void step(double model_time, bool collect_stats, bool asymmetric);
     void draw(CImg<unsigned char>& img);
-
+    static LaneType opposite_lane(LaneType type);
     const Statistics& get_stats() const { return stats_; }
 
    private:
@@ -29,9 +29,6 @@ class Simulation {
 
     void init_lanes();
     Lane* get_lane(LaneType type);
-    static LaneType opposite_lane(LaneType type);
-    int front_gap(const Car* car, const Lane* lane);
-    int back_gap(const Car* car, const Lane* lane);
 };
 
 #endif  // SIMULATION_H

@@ -4,6 +4,8 @@ mkdir -p results
 
 make -j 4
 
+echo "Running simulations..."
+
 # 0 aggressive drivers, varying density, symmetric rules
 echo "density,aggressive,flow,lane_change_rate,left_flow,right_flow" >results/flow_density_sym.csv
 for density in $(seq 0 0.01 0.5); do
