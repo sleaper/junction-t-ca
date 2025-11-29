@@ -9,14 +9,12 @@
 
 using namespace cimg_library;
 
-Lane::Lane(int id_, int start_x_, int start_y_)
+Lane::Lane(LaneType id_, int start_x_, int start_y_)
     : id(id_),
       start_x(start_x_),
       start_y(start_y_),
       occ(MAIN_LANE_LENGTH, EMPTY_CELL),
-      next_occ(MAIN_LANE_LENGTH, EMPTY_CELL),
-      gap_ahead(MAIN_LANE_LENGTH, 0),
-      gap_behind(MAIN_LANE_LENGTH, 0) {}
+      next_occ(MAIN_LANE_LENGTH, EMPTY_CELL) {}
 
 std::pair<int, int> Lane::screen_coords(size_t pos) const {
     return {start_x + static_cast<int>(pos), start_y};
@@ -39,7 +37,6 @@ void Lane::draw(CImg<unsigned char>& img) const {
     for (const auto& car_id : occ) {
         if (car_id != EMPTY_CELL) {
             auto [cx, cy] = screen_coords(&car_id - &occ[0]);
-            // img.draw_rectangle(cx, cy, cx + CAR_LEN, cy, red, 3);
             img.draw_point(cx, cy, red, 3);
         }
     }

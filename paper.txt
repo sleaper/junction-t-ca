@@ -1,0 +1,955 @@
+arXiv:cond-mat/9512119v1 15 Dec 1995
+
+Two Lane Traﬃc Simulations
+using
+Cellular Automata
+LANL Report No. LA-UR 95-4367
+
+M. Rickerta,b , K. Nagelb , M. Schreckenbergc , A. Latourd
+a Center for Parallel Computing, Universität zu Köln, 50923 Köln, Germany,
+
+mr@zpr.uni-koeln.de
+b Los Alamos National Laboratory, TSA-DO/SA MS M997, Los Alamos NM 87545,
+
+USA, rickert@tsasa.lanl.gov and kai@lanl.gov
+c Theoretische Physik/FB 10, Gerhard-Mercator-Universität Duisburg,
+
+47048 Duisburg, Germany, schreck@rs1.comphys.uni-duisburg.de
+d Institut für Theoretische Physik, Universität zu Köln, 50923 Köln,
+
+Germany, a2015846@smail.rrz.uni-koeln.de
+
+November 26, 2024
+Abstract
+We examine a simple two lane cellular automaton based upon the single lane CA introduced by Nagel and Schreckenberg. We point out important parameters deﬁning the shape of the fundamental diagram. Moreover
+we investigate the importance of stochastic elements with respect to real
+life traﬃc.
+
+1
+
+Introduction
+
+In recent times cellular automata based simulations of trac ow have gained
+considerable importance. By extending the range of rules from nearest neighbours to a range of 5 grid sites and introducing 6 discrete velocities 0 . . . 5 Nagel
+and Schreckenberg [1] have found a striking resemblance of simulation and realistic trac behaviour. For vmax = 1 Schadschneider and Schreckenberg have
+1
+
+2
+
+1
+
+INTRODUCTION
+
+found an analytic solution [2]. For higher vmax , these analytic approaches lead
+to good approximations for the average behavior [3]. Further analytic results can
+be found in [4]. Nagel [5] pointed out the strong connections between particle
+hopping models and uid-dynamical approaches for trac ow.
+Much less is known about modelling of multi-lane trac. This statement is not
+only true for particle hopping models for trac ow, but for trac ow theory
+in general. Queueing models are not truly multilane, but emulate multiple lanes
+by switching the order of vehicles on one lane whenever a passing would have
+occurred in reality [7]. Fluid-dynamical models incorporate multi-lane trac
+only by parametrization [8, 9], although sometimes based on kinetic theory [10].
+Traditional car-following theory (see [11]) by and large never dealt with multilane trac. Modern microscopic trac simulation models (e.g. [12, 13, 14, 15])
+obviously handle multi-lane trac by necessity. Cremer and coworkers [16, 17]
+even treat multi-lane trac in the context of cellular automata models. Yet, all
+these papers approach the problem by using heuristic rules of human behavior,
+without checking which of these rules exactly cause which kind of behavior. In
+validations then (e.g. [15]), it often enough turns out that certain features of the
+model are not realistic; and because of the heuristic approach it is dicult to
+decide which rules have to be changed or added in order to correct the problem.
+For that reason, a more systematic approach seems justied. Our approach here
+is to search for minimal sets of rules which reproduce certain macroscopic facts.
+The advantage is that relations between rules and macroscopic behavior can
+be more easily identied; and as a welcome side-eect one also obtains higher
+computational speed.
+We again choose particle hopping models as starting point for this investigation because their highly discrete nature reduces the number of free parameters
+even further. It is clear that a similar analysis could be applied to continuous
+microscopic models, hopefully beneting from the results obtained in this and
+following papers.
+Nagatani examined a two lane system with completely deterministic rules and
+vmax = 1 [18, 19], where cars either move forward or change lanes. A very
+unrealistic feature of this model are states where blocks of several cars oscillate
+between lanes without moving forward at all. He corrected this by introducing
+randomness into the lane changing [20]. Latour has developed the two lane
+model which served as the basis for the one discussed here [22]. Rickert used a
+more elaborate rule set for two lane trac which reproduced the phenomenon
+of increased ow with an imposed speed limit [23].
+
+3
+
+2
+
+Single Lane Model
+
+For the convenience of the reader we would like to outline the single lane model.
+The system consists of a one dimensional grid of L sites with periodic boundary
+conditions. A site can either be empty, or occupied by a vehicle of velocity
+zero to vmax . The velocity is equivalent to the number of sites that a vehicle
+advances in one update — provided that there are no obstacles ahead. Vehicles
+move only in one direction. The index i denotes the number of a vehicle, x(i) its
+position, v(i) its current velocity, vd (i) its maximum speed1 , pred(i) the number
+of the preceding2 vehicle, gap(i) := x(pred(i)) − x(i) − 1 the width of the gap
+to the predecessor. At the beginning of each time step the rules are applied to
+all vehicles simultaneously (parallel update, in contrast to sequential updates
+which yield slightly dierent results). Then the vehicles are advanced according
+to their new velocities.
+• IF v(i) = vd (i) THEN v(i) := v(i) + 1
+
+(S1)
+
+• IF v(i) > gap(i) THEN v(i) := gap(i)
+
+(S2)
+
+• IF v(i) > 0 AND rand < pd (i) THEN v(i) := v(i) − 1
+
+(S3)
+
+S1 represents a linear acceleration until the vehicle has reached its maximum
+velocity vd . S2 ensures that vehicles having predecessors in their way slow down
+in order not to run into them. In S3 a random generator is used to decelerate
+a vehicle with a certain probability modelling erratic driver behaviour. The
+free–ow average velocity is vmax − pd (for pd = 1).
+
+3
+
+A Generic Two Lane Model
+
+The single lane model is not capable of modelling realistic trac mainly for one
+reason: a realistic eet is usually composed of vehicles types having dierent
+desired velocities. Introducing such dierent vehicle types in the single lane
+model only results in platooning with slow vehicles being followed by faster
+ones and the average velocity reduced to the free–ow velocity of the slowest
+vehicle [21, 24].
+We introduce a two lane model3 consisting of two parallel single lane models with
+periodic boundary conditions and four additional rules dening the exchange of
+vehicles between the lanes. The update step is split into two sub-steps:
+1 Note that in the original model all vehicles had the same maximum velocity v
+max . We
+now allow for dierent desired velocities vd (i) to include an inhomogeneous eet
+2 A precedes B in this context means that A is followed by B
+3 Note that the results presented here still concentrate on a single desired velocity only.
+The eects of dierent desired velocities will be investigated in future papers.
+
+4
+
+3
+
+A GENERIC TWO LANE MODEL
+
+1. Check the exchange of vehicles between the two lanes according to the
+new rule set. Vehicles are only moved sideways. They do not advance.
+Note that in reality this sub-step regarded by itself seems unfeasible since
+vehicles are usually incapable of purely transversal motion. Only together
+with the second sub-step our update rules make physically sense.
+This rst sub-step is implemented as strict parallel update with each vehicle making its decision based upon the conguration at the beginning of
+the time step.
+2. Perform independent single lane updates on both lanes according to the
+single lane update rules. In this second sub-step the resulting conguration
+of the rst sub-step is used.
+The most important parameters of the two lane model are as follows:
+Symmetry: The rule set dening the lane changing of vehicles can be both
+symmetric and asymmetric. The symmetric model is interesting for theoretical considerations whereas the the asymmetric model is more realistic.
+Stochasticity: The single lane model proved that a strictly deterministic model
+is not realistic: the model did not show the desired spontaneous formation of jams. In the case of the two lane model the lack of stochasticity in
+combination with the parallel update results in strange behaviour of slow
+platoons occupying either lane: since none of the vehicles has reached its
+maximum velocity and all evaluate the other lane to be better there is
+collective change sidewise which is usually reversed over and over again
+until the platoon dissolves or the platoon is passed by other vehicles.
+We introduce stochasticity into the two lane rule set to reduce the eective
+number of lane changes and thus dissolve those platoons. The simulation
+also revealed that is eect is also important in the asymmetric free–ow
+case (see 4.4).
+Direction of Causality: In the single lane model a vehicle only looks ahead
+(= downstream = in the direction of vehicle ow) so that causality can
+only travel upstream (= in the opposite direction of vehicle ow). A
+reasonable lane changing rule must include a check of sites upstream in
+order not to disturb the trac of the destination lane. This would result
+in causality travelling downstream.
+A somewhat generic starting point for modeling passing rules is the following:
+(T1) You look ahead if somebody is in your way. (T2) You look on the other
+lane if it is any better there. (T3) You look back on the other lane if you would
+get in somebody else’s way.
+
+5
+
+Technically, we keep using gap(i) for the number of empty sites ahead in the
+same lane, and we add the denitions of gapo (i) for the forward gap on the
+other lane, and gapo,back for the backward gap on the other lane. Note that if
+there is a vehicle on a neighbouring site both return -1. The generic multi-lane
+model then reads as follows. A vehicle i changes to the other lane if all of the
+following conditions are fullled:
+• gap(i) < l (T1),
+• gapo (i) > lo (T2),
+• gapo,back (i) > lo,back (T3), and
+• rand() < pchange (T4).
+l, lo , and lo,back are the parameters which decide how far you look ahead on
+your lane, ahead on the other lane, or back on the other lane, respectively.
+According to the before mentioned characteristics we associate the parameters
+of our rule set:
+characteristic
+symmetry
+stochasticity
+backward causality
+
+4
+
+yes
+T1 for L→R
+probc < 1
+lo,back > 0
+
+no
+no T1 for L→R
+probc = 1
+lo,back = 0
+
+A lane changing model
+
+As an example, we start with l = v + 1, lo = l, lo,back = 5 = vmax , and
+pchange = 1. That means that both l and lo are essentially proportional to
+the velocity, whereas looking back is not: It depends mostly on the expected
+velocity of other cars, not on one’s own.
+In the symmetric version of this model, cars remain on their lane as long as they
+don’t “see” anybody else. If they see somebody ahead on their own lane (i.e.
+gap < v + 1), then they check on the other lane if they can switch lanes and do
+so if possible. Afterwards, if they are satised, they remain on this lane until
+they become dissatised again.
+In the asymmetric version, cars always try to return to the right lane, independent of their situation on the left lane.
+Space-time-plots both of the symmetric and the asymmetric version are shown
+in Figs. 1 and 2. For these plots, we simulated a system with a length of 12,000
+sites of which we plot 400 sites in 400 consecutive time-steps. The density is
+0.09 which is slightly above the density of maximum ow (see below). Vehicles
+go from left to right (spatial axis) and from top to bottom (time axis). Trac
+
+6
+
+4 A LANE CHANGING MODEL
+
+jams appear as solid areas with steep positive inclination whereas free ow areas
+are light and have a more shallow negative inclination. Each plot is split into
+two parts: The left part containing the left lane and the right part containing
+the right lane, respectively.
+Note that plot 2 (left lane) gives a good impression of the great number of lane
+changes through the high frequency of short vehicle life lines appearing and
+disappearing: These are vehicles that temporarily leave the right lane to avoid
+an obstacle. They go back to their old lane as soon as the obstacle has been
+passed. It will be conrmed quantitatively that indeed the rate of lane changes
+is much higher for the asymmetric model than for the symmetric model.
+
+4.1
+
+Simulation Setup
+
+Before going on, we would like to describe our standard simulations set-up
+for the following observations. Note that quantitative simulation results were
+obtained with a much larger system than the qualitative space-time plots. We
+simulated a system of length
+L = 133, 333 sites ≈ 1000 km
+with closed boundary conditions, i.e. trac was running in a loop. We started
+with random initial conditions, i.e. N cars were randomly distributed on both
+lanes around the complete loop with initial velocity v0 = 0.
+Since the system is closed, the average density per lane is now xed at
+ρL =
+
+N
+,
+2L
+
+where the “2” stands for the number of lanes.
+The simulation was then started, 1000 time steps were executed to let the transients die out, and then the data extraction was started. The ow which is
+found in the fundamental diagrams is both space and time4 averaged, i.e.
+1 1 ∑∑
+v(i, 5t) .
+jL,T =
+T L i t
+L
+
+T /5
+
+Values for lane change frequency and ping pong lane change frequency (see
+below) are obtained by the same averaging procedure except that statistics are
+gathered every time step, since by denition ping pong lane changes occur in
+subsequent time steps.
+We usually used T = 5000, and the same procedure was repeated for each
+density found in the plots. With a resolution of ∆̺ = 0.01 an average plot took
+about 22 hours of computation time on a Sparc 10 workstation.
+4 We gather statistics every fth time-step only, since subsequent time steps are correlated.
+
+4.2 Flow behavior
+
+4.2
+
+7
+
+Flow behavior
+
+By comparing these models with each other and with earlier results, we make
+the following observations (Fig. 3 unless otherwise noted):
+(i) Both for the symmetric and the asymmetric version, maximum ow is higher
+than twice the maximum ow of the single lane model (Fig. 4). Which means
+that, in spite of the additional disturbances which the lane changing behavior
+introduces into the trac ow, the general eects are benecial, probably by
+diminishing large deviations from “good” ow patterns.
+(ii) Both for the symmetric and the asymmetric version, the combined 2-lane
+ow reaches a maximum at ρjmax ≈ 0.08, which is at or near a sharp bend of
+the ow curve.
+(iii) For the asymmetric model, ow on the left lane keeps increasing slightly
+for ρ > ρjmax , but this is over-compensated by the decreasing ow on the right
+lane.
+(ii) and (iii) together lead one to the speculation that maximum ow in the
+asymmetric case here actually is connected to a “critical” ow on the right lane
+and a “sub-critical” ow on the left lane. Any addition of density beyond here
+leads to occasional break-downs on the right lane and thus to a much lower
+ow there. Obviously, such interpretations would have to be claried by further
+investigations, and the word “critical” would have to be used with more care,
+such as is pointed out in [6] for the single lane case.
+(iv) For both lanes combined, the curves for symmetric and asymmetric trac
+actually look fairly similar. If the above interpretation is right, this means that
+the overall density of maximum ow is a fairly robust quantity, but one can
+stabilize one lane at a much higher density if this density is taken from the
+other lane.
+(v) At very low densities in the asymmetric case, ow on the left lane, jlef t ,
+only slowly builds up. This is to be expected, since at least two cars have to be
+close to each other to force one of them on the left lane, leading to a mean eld
+solution of jlef t (ρ) ∼ ρ2 for ρ ≈ 0.
+(vi) For ρ > 0.4, ows on both lanes in the asymmetric models are fairly similar
+and similar to the lane ows in the symmetric models.
+
+4.3
+
+Lane changing behavior
+
+To get some further insight into the lane changing dynamics, Fig. 5 shows the
+frequency of lane changing both for the asymmetric and the symmetric model.
+(i) Note that in the asymmetric case there is a sharp bend in the curve, which is
+not found for the symmetric case. This bend is also near ρjmax , giving further
+indication that the dynamics above and below ρjmax are dierent.
+
+8
+
+4 A LANE CHANGING MODEL
+
+(ii) For the symmetric case, lane changing occurs with less than half the frequency compared to the asymmetric case.
+(iii) In the symmetric case, the lane changing frequency per site for small densities increases approximately quadratically up to rather high densities, whereas
+the same quantity for the asymmetric model grows approximately linearly already for fairly low densities. suggests that for the symmetric case a mean eld
+description of interaction, P (change) ∝ ρ2 , would be valid up to comparably
+high densities. obvious that this does not work. Since the vehicles have a strong
+tendency to be on the right lane, already a density of 0.04 per lane would be
+a density of 0.08 if everybody were on the right lane. Yet, ρ = 0.08 is known
+to be already a density of high interaction in single lane trac. Since this high
+interaction tends to spread vehicles out [2, 3], each additional vehicle simply
+adds its own share of lane changes, making the relation roughly linear.
+(iv) The maximum number of lane changes occurs at densities much higher than
+ρjmax . The lane changing probability per vehicle, however, reaches a maximum
+below the critical density (Fig. 6).
+
+4.4
+
+Ping pong lane changes
+
+An artifact of the so far described algorithm is easily recognizable when one
+starts with all cars on the same lane, say the right one. Assuming fairly high
+density, then all cars see somebody in front of them, but nobody on the left
+lane. In consequence, everybody decides to change to the left lane, so that
+all cars end up on the left lane. Here, they now all decide to change to the
+right lane again, etc., such that these coordinated lane changes go on for a long
+time (“cooperative ping-pong eect”). This eect has already been observed by
+Nagatani for the much simpler two-lane model [18, 19].
+One way around this is to randomize the lane changing decision [20]. The
+decision rules remain the same as above, but even if rules T1 to T3 lead to a
+yes, it is only accepted with probability pchange . With this fourth lane changing
+rule, patterns like the above are quickly destroyed.
+In order to quantify the eects of a dierent pchange , simulations with pchange =
+0.5 were run. The observations can be summarized as follows:
+(i) The ow-density curves are only marginally changed (Fig. 7).
+(ii) The frequency of lane changes is decreased in general, but, except for ρ <
+ρjmax in the asymmetric case, by much less than the factor of two which one
+would naively expect (Fig. 5). That means that usually there is a dynamic
+reason for the lane change, that is, if it is not done in one time step due pchange <
+1, then it is re-tried in the following time step, etc.
+(iii) To better quantify in how far a pchange < 1 actually changes the pattern
+of vehicles changing lanes back and forth in consecutive time steps, we also
+
+4.5 Other Parameter Combinations
+
+9
+
+determined the frequency of “ping pong lane changes”, where a car makes two
+lane changes in two consecutive iterations. Obviously, there are left-right-left
+(lrl) and right-left-right (rlr) ping pong lane changes.
+Fig. 8 shows that reducing the probability to change lanes, pchange , from 1 to 1/2
+has indeed a benecial eect: The number of ping pong lane changes decreases
+by about a factor of ve.
+Yet, for the symmetric case, the frequency of ping pong lane changes is more
+than an order of magnitude lower in both cases anyway. This indicates that
+in simulations starting from random initial conditions, the cooperative eect as
+described further above as cooperative ping-pong eect does not really play a
+role for the statistical frequency, because this eect should be the same for the
+symmetric and the asymmetric model. Instead, the cause of the ping pong lane
+changes in the asymmetric model is as follows: Assume just two cars on the
+road, with a gap of 5 between them. With respect to velocity, both cars are
+in the free driving regime, and their velocities will uctuate between 4 and 5.
+Now assume that the following car has velocity 5 from the last movement. That
+means that it looks 6 sites ahead, sees the other car, and changes to the left
+lane. Then, assume that in the velocity update, the leading car obtains velocity
+5 and the following car obtains velocity 4. Then, after the movement step, there
+is now a gap of 6 between both cars, and in the lane changing step, the follower
+changes back to the right lane. And this can happen over and over again in
+the asymmetric model, but will not happen in the symmetric model: Once the
+following car in the above situation has changed to the left lane, it will remain
+there until it runs into another car on the left lane.
+To investigate this second kind of ping pong lane changes we ran simulations
+recording whether a ping pong lane change was made at low velocities 0 ≤ v ≤ 3
+or high velocities 4 ≤ v ≤ 5. Fig. 9 shows a very distinct peak for fast ping–
+pong–changes at low densities whereas slow ping–pong–changes have a lower
+peak at higher densities similar to that of the symmetric case.
+This gives a strong indication that most lane changes are actually caused by
+the “tailgating eect” as described above, which is an artifact of the rules. It
+is, though, to be expected that this behavior does not have a strong inuence
+on the overall dynamics: It mostly happens in the free driving regime; as soon
+as, for example, another car is nearby in the left lane, it is suppressed by the
+looking back and forward on the other lane.
+
+4.5
+
+Other Parameter Combinations
+
+We would like to mention two other parameter combinations. They are presented because they generate artifacts which contradict the common sense one
+would apply to the phenomena of trac ow.
+(i) In the rst case the lookahead is reduced to l = v instead of l = v + 1. While
+
+10
+
+5 DISCUSSION
+
+this change is negligible for vehicles at higher velocities it becomes crucial to a
+vehicles stopped in a jam: assuming the current velocity to be zero the vehicle
+looks zero sites ahead and decides to remain in the current lane due to the non–
+fullled rule T 1. This state will persist until the predecessor moves even if the
+other lane is completely free! Fig. 10 shows the impact the reduced look ahead
+on overall ow: for density ρ > 0.75 there is no perceptible ow in the right lane
+which corresponds to a trac jam that occupies more or less the whole right
+lane.
+(ii) In the second case the look-back is reduced to lo,back = 0. Vehicles no
+longer check whether their lane changing could have a disadvantageous eect
+on the other lane which corresponds to a very egoistic driver behaviour. Fig. 11
+shows ow density relationships for look-back lo,back = 5 and lo,back = 0. It
+is obvious that the decrease in look-back also decreases the maximum ow at
+critical densities. Moreover lo,back = 0 seems to split the curves of the symmetric
+and asymmetric cases which used to be almost identical for lo,back = 5: the lack
+of look-back is much more disadvantageous for asymmetric than for symmetric
+rules.
+In Figs. 12 and 13 we used lo,back = 0 for the symmetric and asymmetric rule
+sets with one plot per lane. It is clearly visible (compare to Figs. 1 and 2)
+how lo,back = 0 completely disrupts the laminar ow regime. Vehicles change
+lanes without looking back; and due to the formulation of the model this does
+not cause accidents, but causes the obstructed vehicles to make sudden stops.
+Since these stops are caused more or less randomly, the regime becomes much
+more randomly disturbed than before, somewhat reminiscent of the Asymmetric
+Stochastic Exclusion Process (see [3, 5]).
+As seen before the eect is even more drastic for the asymmetric rule set since
+the number of lane changes is higher than in the symmetric case. In Fig. 13
+with lo,back = 0 dynamics are dominated by small trac jams caused by lane
+changes, while in Fig. 1 there are still some fairly laminar areas.
+
+5
+
+Discussion
+
+Compared to reality (e.g. [15]), the lane change frequency in the asymmetric
+models presented here is by about a factor of 10 too high. Using pchange = 0.1
+would correct this number, but is dynamically not a good x: It would mean
+that a driver follows a slower car in the average for 10 seconds before he decides
+to change lanes. Besides, it was shown that about 90% of the lane changes in
+the asymmetric models here are produced by an articial “tailgating dance”,
+where a follower changes lanes back and forth when following another car. It
+remains an open question in how far artifacts like this can be corrected by the
+current modeling approach or if it will be necessary to, e.g., introduce memory:
+
+11
+
+If one remembers to just have changed lane from right to left, one will probably
+stay on that lane for some time before changing back.
+Another defect of the models presented in this paper is that the maximum ow
+regime is most probably represented incorrectly. Both measurements (e.g. [15]
+or Fig. 3.6 in [25]) or everyday observation show that real trac shows a “density
+inversion” long before maximum ow, that is, more cars drive on the left lanes
+than on the right lanes. This eect is more pronounced for countries with higher
+speed limits. Let us denote by ρ1lane
+jmax the density of maximum ow of the single
+lane case. It follows for the real world two lane case that at a certain point
+the left lane will have a density higher than this density ρ1lane
+jmax whereas the
+right lane has a density lower than ρ1lane
+.
+When
+further
+increasing
+the overall
+jmax
+density, then the ow on the left lane will decrease whereas it still increases
+on the right lane. It is unclear if the net ow here increases or decreases; but
+it should become clear that instabilities here are caused by the left lane rst.
+This is in contrast to the models of this paper, where the right lane reaches the
+critical density rst. Work dealing with this problem is currently in progress.
+Also the eect of dierent maximum velocities will be addressed in later papers.
+
+6
+
+Summary and conclusion
+
+We have presented straightforward extensions of the cellular automata approach
+to trac ow so that it includes two-lane trac. The basic scheme introduced
+here is fairly general, essentially consisting of two rules: Look ahead in your
+own lane for obstructions, and look in the other lane if there is enough space.
+The ow-density relations of several realizations of this scheme have been investigated in detail; possible artifacts for certain parameter choices have been
+pointed out. In general, there seem to be two important lessons to be drawn
+from our investigations:
+• Checking for enough space on the other lane (“look-back”) is important
+if one wants to maintain the dynamics consisting of laminar trac plus
+start–stop waves which is so typical for trac.
+• Especially in countries with high speed limits, observations show a density
+inversion near maximum ow, that is, the density is higher on the left lane
+than on the right lane. This eect is not reproduced by our models (work
+in progress).
+Yet, in general, it seems that the approach to multi lane trac using simple
+discrete models is a useful one for understanding fundamental relations between
+microscopic rules and macroscopic measurements.
+
+12
+
+7
+
+REFERENCES
+
+Acknowledgements
+
+We thank A. Bachem and C. Barrett for supporting MR’s and KN’s work as
+part of the trac simulation eorts in Cologne (“Verkehrsverbund NRW”) and
+Los Alamos (TRANSIMS). We also thank them, plus Ch. Gawron, T. Pfenning,
+S. Rasmussen, and P. Wagner for help and discussions. Computing time on the
+Parsytec GCel-3 of the Zentrum für Paralleles Rechnen Köln, on the Paragon
+XP/S 5 and XP/S 10 of the Zentralinstitut für Angewandte Mathematik (ZAM)
+of the Forschungszentrum Jülich and on the SGI-1 of the Regionales Rechenzentrum Köln is gratefully acknowledged. We further thank all persons in charge
+of maintaining the above mentioned machines.
+The work of MR and KN was supported in part by the “Graduiertenkolleg
+Scientic Computing Köln/St. Augustin”.
+
+References
+[1] K. Nagel and M. Schreckenberg. J. Physique I, 2:2221 (1992).
+[2] A. Schadschneider and M. Schreckenberg. Journal of Physics A, 26 (1993).
+[3] M. Schreckenberg, A. Schadschneider, K. Nagel, and N. Ito, Phys. Rev. E
+51, 2939 (1995).
+[4] J.G. Brankov, V.B. Priezzhev, A. Schadschneider, M. Schreckenberg, The
+Kasteleyn model and a cellular automaton approach to trac ow, preprint
+(1995).
+[5] K. Nagel, Particle hopping models and trac ow theory, Los Alamos
+Unclassied Report 95:2908 (1995), Phys. Rev. E (submitted).
+[6] K. Nagel and M. Paczuski. Phys. Rev. E, 51:2909 (1995).
+[7] A. Alvarez, J. J. Brey, and J. M. Casado. Transpn. Res. B, 24:193–202
+(1988).
+[8] P. K. Munjal and L. A. Pipes. and three-lane freeways. Transpn. Res.,
+5:241–255 (1971).
+[9] P. K. Munjal, Yuan-Shih Hsu, and R. L. Lawrence. Transpn. Res., 5:257–
+266 (1971).
+[10] D. Helbing, Modeling multi-lane trac ow with queueing eects (preprint,
+1995).
+
+REFERENCES
+
+13
+
+[11] D. L. Gerlough and M. J. Huber, Trac Flow Theory, Special Report 165,
+1975, Transportation Research Board, National Research Council, Washington, D.C.
+[12] T. Benz, The microscopic trac simulator AS (Autobahn Simulator), ESM,
+p. 486.
+[13] FRESIM User Guide, Version 4.5 (Federal Highway Administration, US
+Department of Transportation, 1994).
+[14] G. D. B. Cameron and C. I. D. Duncan, PARAMICS–Parallel microscopic
+simulation of road trac, J. Supercomputing
+[15] M. McDonald, M.A. Brackstone, Simulation of lane usage characteristics on
+3 lane motorways, Paper No. 94AT051, in: Proceedings of the 27th International Symposium on Automotive Technology and Automation (ISATA)
+(Automotive Automation Ltd, Croydon, England, 1994), p. 365.
+[16] M. Cremer and J. Ludwig, Mathematics and Computers in Simulation 28,
+297 (1986).
+[17] H. Schütt, Entwicklung und Erprobung eines sehr schnellen, bitorientierten Verkehrssimulationssystems für Straßennetze, Schriftenreihe der AG
+Automatisierungstechnik TU Hamburg-Harburg No. 6 (1991).
+[18] T. Nagatani. J. Phys. A: Math. Gen., 26:L781 (1993).
+[19] T. Nagatani. Physica A, 202:449 (1994).
+[20] T. Nagatani. J. Physical Soc. Japan, 63:52 (1994).
+[21] T. Nagatani, Bunching of cars in asymmetric exclusion models for freeway
+trac, Phys. Rev. E 51(N2), 922 (1995).
+[22] A. Latour. Simulation von Zellularautomaten–Modellen für Mehrspurverkehr. Schriftliche Hausarbeit im Rahmen der Ersten Staatsprüfung (1993).
+[23] M. Rickert. Simulation zweispurigen Verkehrsusses auf der Basis zellularer
+Automaten. Master thesis, Universität zu Köln (1994).
+[24] E. Ben-Naim, P. L. Krapivsky, and S. Redner, Kinetics of clustering in
+trac ows, Phys. Rev. E 50(N2), 822 (1994).
+[25] A.D. May, Trac ow fundamentals (Prentice Hall, Englewood Clis, NJ,
+1990).
+
+14
+
+REFERENCES
+
+Figure 1: symmetric, lo,back = 5, left + right lanes
+
+Figure 2: asymmetric, lo,back = 5, left + right lanes
+
+0.45
+BOTH
+LEFT
+RIGHT
+SYMMETRIC
+
+0.4
+0.35
+0.3
+
+flow
+
+0.25
+0.2
+0.15
+0.1
+0.05
+0
+0
+
+0.1
+
+0.2
+
+0.3
+
+0.4
+
+density
+
+Figure 3: Flow LookBack = 5, pchange = 1.0
+
+0.5
+
+15
+
+REFERENCES
+
+0.36
+ASYMMETRIC
+SYMMETRIC
+SINGLE
+
+0.34
+
+0.32
+
+flow
+
+0.3
+
+0.28
+
+0.26
+
+0.24
+
+0.22
+0.05
+
+0.06
+
+0.07
+
+0.08
+
+0.09
+
+0.1
+0.11
+density
+
+0.12
+
+0.13
+
+0.14
+
+0.15
+
+Figure 4: Comparison Single Lane to Multi Lane
+
+0.008
+ASYM C=0.5
+ASYM C=1.0
+SYM C=0.5
+SYM C=1.0
+
+lane changes / per site and time step
+
+0.007
+0.006
+0.005
+0.004
+0.003
+0.002
+0.001
+0
+0
+
+0.1
+
+0.2
+
+0.3
+
+0.4
+
+density
+
+Figure 5: Simple Lane Changes LookBack = 5
+
+0.5
+
+16
+
+REFERENCES
+
+0.09
+lane changes per site and timestep and density
+
+lane changes
+0.08
+0.07
+0.06
+0.05
+0.04
+0.03
+0.02
+0.01
+0
+0
+
+0.1
+
+0.2
+
+0.3
+density
+
+0.4
+
+0.5
+
+0.6
+
+Figure 6: Lane Changes Per Vehicle l = 5, pchange = 1.0
+
+0.345
+ASYM C=0.5
+ASYM C=1.0
+SYM C=0.5
+SYM C=1.0
+
+0.34
+
+0.335
+
+flow
+
+0.33
+
+0.325
+
+0.32
+
+0.315
+
+0.31
+0.07
+
+0.08
+
+0.09
+
+0.1
+
+0.11
+density
+
+0.12
+
+0.13
+
+0.14
+
+Figure 7: Flow LookBack = 5, dierent pchange
+
+0.15
+
+17
+
+REFERENCES
+
+ping pong lane changes / per site and time step
+
+0.0025
+ASYM C=0.5 (L->R->L)
+ASYM C=1.0 (L->R->L)
+ASYM C=0.5 (R->L->R)
+ASYM C=1.0 (R->L->R)
+SYM C=0.5
+SYM C=1.0
+
+0.002
+
+0.0015
+
+0.001
+
+0.0005
+
+0
+0
+
+0.1
+
+0.2
+
+0.3
+
+0.4
+
+0.5
+
+density
+
+Figure 8: Ping Pong Lane Changes LookBack = 5, dierent pchange
+
+lane changes per site and timestep
+
+0.0025
+slow R->L->R
+fast R->L->R
+slow L->R->L
+fast L->R->L
+
+0.002
+
+0.0015
+
+0.001
+
+0.0005
+
+0
+0
+
+0.1
+
+0.2
+
+0.3
+density
+
+0.4
+
+0.5
+
+Figure 9: Slow and Fast Ping Pong Lane Changes
+
+0.6
+
+18
+
+REFERENCES
+
+Latour Model 2
+0.4
+Left Lane
+Right Lane
+Mean
+
+0.35
+0.3
+
+flow
+
+0.25
+0.2
+0.15
+0.1
+0.05
+0
+0
+
+0.1
+
+0.2
+
+0.3
+
+0.4
+
+0.5
+density
+
+0.6
+
+0.7
+
+0.8
+
+0.9
+
+1
+
+Figure 10: Flow with l = v
+
+0.35
+ASYM LB=0
+ASYM LB=5
+SYM LB=0
+SYM LB=5
+
+0.3
+
+0.25
+
+flow
+
+0.2
+
+0.15
+
+0.1
+
+0.05
+
+0
+0
+
+0.1
+
+0.2
+
+0.3
+
+0.4
+
+density
+
+Figure 11: Flow pchange = 1.0, dierent LookBack
+
+0.5
+
+REFERENCES
+
+Figure 12: symmetric, lo,back = 0, left + right lanes
+
+Figure 13: asymmetric, lo,back = 0, left + right lanes
+
+19
+
+
