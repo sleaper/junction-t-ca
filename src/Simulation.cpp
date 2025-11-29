@@ -101,8 +101,8 @@ void Simulation::step(double mt, bool collect_stats, bool asymmetric) {
                             : true;
         }
 
-        bool improvement = car->front_gap(other_lane) >= look_other_ahead;
-        bool safety = car->back_gap(other_lane) >= look_other_back;
+        bool improvement = car->front_gap(other_lane) > look_other_ahead;
+        bool safety = car->back_gap(other_lane) > look_other_back;
 
         bool target_free = other_lane->occ.at(car->poss) == EMPTY_CELL;
 

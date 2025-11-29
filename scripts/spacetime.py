@@ -1,55 +1,29 @@
 #!/usr/bin/env python3
-import csv
+import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
 
 def main():
-    # Load data
-    times, lanes, positions = [], [], []
-    with open("space_time.csv") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            times.append(int(row["time"]))
-            lanes.append(int(row["lane"]))
-            positions.append(int(row["position"]))
+    df = pd.read_csv("space_time.csv")
+    
+    df = df[(df["time"] < 400) & (df["position"] < 400)]
 
-    max_time = max(times)
-    max_pos = max(positions)
-    num_lanes = len(set(lanes))
-    print(f"Time steps: {max_time + 1}, Positions: {max_pos + 1}, Lanes: {num_lanes}")
+    unique_lanes = sorted(df["lane"].unique())
+    fig, axes = plt.subplots(1, len(unique_lanes), figsize=(6 * len(unique_lanes), 6), sharey=True)
+    
+    if len(unique_lanes) == 1: axes = [axes]
 
-    display_time = min(400, max_time + 1)
-    display_pos = min(400, max_pos + 1)
+    for ax, lane in zip(axes, unique_lanes):
+        lane_data = df[df["lane"] == lane]
+        
+        ax.scatter(lane_data["time"], lane_data["position"], c='black', s=1, marker='s')
+        
+        ax.set_title(f"Lane {lane}")
+        ax.set_xlabel("Time")
+        ax.set_ylim(400, 0)
 
-    # Create space-time matrices: rows = time, columns = position
-    matrices = {}
-    unique_lanes = sorted(set(lanes))
-    for lane in unique_lanes:
-        matrices[lane] = np.zeros((display_time, display_pos), dtype=int)
-
-    # Fill matrices with vehicle positions
-    for t, lane, pos in zip(times, lanes, positions):
-        if t < display_time and pos < display_pos:
-            matrices[lane][t, pos] = 1
-
-    # Create figure with subplots for each lane
-    fig, axes = plt.subplots(1, num_lanes, figsize=(8 * num_lanes, 8), sharey=True)
-    lane_names = {0: "Left Lane", 1: "Right Lane"}
-
-    for idx, lane in enumerate(unique_lanes):
-        axes[idx].imshow(
-            matrices[lane],
-            cmap="binary",
-            interpolation="none",
-            aspect="auto",
-            origin="upper",
-        )
-        axes[idx].set_xlabel("Position (cells)", fontsize=12)
-        axes[idx].set_ylabel("Time Step", fontsize=12)
-        axes[idx].set_title(lane_names.get(lane, f"Lane {lane}"), fontsize=14)
-
+    axes[0].set_ylabel("Position")
     plt.tight_layout()
-    plt.savefig("spacetime_diagram.png", dpi=150, bbox_inches="tight")
+    plt.savefig("spacetime_diagram.png")
     print("Saved space-time diagram to spacetime_diagram.png")
 
 if __name__ == "__main__":

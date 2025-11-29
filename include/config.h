@@ -19,9 +19,6 @@ constexpr double LANE_CHANGE_PROB = 1;
 constexpr int MAX_TIME_STEP = 5000;
 constexpr int WARMUP_STEPS = 1000;
 
-enum class MODE_TYPE { SYMMETRIC, ASYMMETRIC };
-constexpr MODE_TYPE MODE = MODE_TYPE::SYMMETRIC;
-
 const unsigned char red[] = {255, 0, 0};
 
 #endif  // CONFIG_H
