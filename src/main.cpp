@@ -6,11 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "CImg.h"
 #include "Simulation.h"
 #include "config.h"
-
-using namespace cimg_library;
 
 void print_usage(const char* program_name) {
     std::cerr
@@ -37,7 +34,7 @@ int main(int argc, char* argv[]) {
     int simulation_steps = MAX_TIME_STEP;
     bool asymmetric = false;
     bool visualize = false;
-    bool print_csv = true;
+    bool print_csv = false;
 
     int opt;
     while ((opt = getopt(argc, argv, "d:a:w:s:pvyh")) != -1) {
@@ -113,14 +110,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    const int WIN_W = SCREEN_CELLS_X * CELL_PIXELS;
-    const int WIN_H = SCREEN_CELLS_Y * CELL_PIXELS;
-    CImg<unsigned char> grid(SCREEN_CELLS_X, SCREEN_CELLS_Y, 1, 3, 0);
-
-    CImgDisplay win;
-
-    if (visualize) win = CImgDisplay(WIN_W, WIN_H, "Simulation grid");
-
     Simulation sim;
 
     sim.reset();
@@ -133,26 +122,6 @@ int main(int argc, char* argv[]) {
 
     for (double step = 0; step < simulation_steps; step += DELTA) {
         sim.step(step, true, asymmetric);
-
-        if (visualize) {
-            sim.draw(grid);
-            CImg<unsigned char> zoomed =
-                grid.get_resize(WIN_W, WIN_H, -100, -100, 1);
-
-            std::string iter_text = "Step: " + std::to_string(step);
-            const unsigned char white[] = {255, 255, 255};
-            zoomed.draw_text(WIN_W - 200, 10, iter_text.c_str(), white, 0, 1,
-                             24);
-
-            win.display(zoomed);
-
-            if (win.is_closed()) break;
-            if (win.resize()) {
-                win.resize(WIN_W, WIN_H);
-            }
-
-            win.wait(1000);  // 1 second real-time delay for visualization
-        }
     }
 
     if (print_csv) {

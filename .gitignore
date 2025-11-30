@@ -12,6 +12,7 @@ ca
 *.pdf
 *.csv
 *.png
+*.zip
 
 build/
 test

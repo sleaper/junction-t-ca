@@ -4,12 +4,9 @@
 #include <memory>
 #include <vector>
 
-#include "CImg.h"
 #include "Car.h"
 #include "Lane.h"
 #include "Statistics.h"
-
-using namespace cimg_library;
 
 class Simulation {
    public:
@@ -17,7 +14,6 @@ class Simulation {
     void reset();
     void spawn_cars(double density, double aggressive_ratio);
     void step(double model_time, bool collect_stats, bool asymmetric);
-    void draw(CImg<unsigned char>& img);
     static LaneType opposite_lane(LaneType type);
     const Statistics& get_stats() const { return stats_; }
 

@@ -18,10 +18,8 @@ void Simulation::reset() {
 }
 
 void Simulation::init_lanes() {
-    int y_mid = SCREEN_CELLS_Y / 2;
-
-    auto left = std::make_unique<Lane>(LaneType::Left, 0, y_mid);
-    auto right = std::make_unique<Lane>(LaneType::Right, 0, y_mid + 1);
+    auto left = std::make_unique<Lane>(LaneType::Left);
+    auto right = std::make_unique<Lane>(LaneType::Right);
 
     lanes_.push_back(std::move(left));
     lanes_.push_back(std::move(right));
@@ -33,14 +31,6 @@ Lane* Simulation::get_lane(LaneType type) {
 
 LaneType Simulation::opposite_lane(LaneType type) {
     return type == LaneType::Left ? LaneType::Right : LaneType::Left;
-}
-
-void Simulation::draw(CImg<unsigned char>& img) {
-    img.fill(0);
-
-    for (auto& lane : lanes_) {
-        lane->draw(img);
-    }
 }
 
 void Simulation::spawn_cars(double density, double aggressive_ratio) {
