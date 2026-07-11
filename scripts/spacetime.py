@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def main():
-    df = pd.read_csv("space_time.csv")
+    df = pd.read_csv("results/space_time.csv")
     
     df = df[(df["time"] < 400) & (df["position"] < 400)]
 
@@ -23,7 +23,7 @@ def main():
 
     axes[0].set_ylabel("Position (cells)")
     plt.tight_layout()
-    plt.savefig("spacetime_diagram.png")
+    plt.savefig("results/spacetime_diagram.png")
     print("Saved space-time diagram to spacetime_diagram.png")
 
 if __name__ == "__main__":

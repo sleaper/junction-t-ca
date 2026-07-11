@@ -7,11 +7,16 @@ Dockerfile
 .clang-uml
 /latex
 *.pyc
+.venv/
+venv/
+__pycache__/
 ca
 *.d
 *.pdf
 *.csv
 *.png
+# Track figures referenced by the README/docs
+!fig/*.png
 *.zip
 
 build/
