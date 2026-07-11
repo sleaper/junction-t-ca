@@ -1,4 +1,4 @@
-# Two-Lane Highway Traffic Flow — Cellular Automaton
+# Two-Lane Highway Traffic Flow Cellular Automaton
 
 A discrete cellular-automaton (CA) simulation of a two-lane highway, built for
 the **IMS** (Modelování a simulace / Modelling and Simulation) course at VUT FIT
@@ -8,8 +8,8 @@ and extends them to study how aggressive drivers affect traffic flow.
 ## Motivation
 
 The goal is to reproduce the two-lane CA model from [[1]](#references) and then
-extend it to examine how different driver archetypes — specifically aggressive
-ones — affect flow on a highway segment. The working hypothesis was that
+extend it to examine how different driver archetypes, specifically aggressive
+ones, affect flow on a highway segment. The working hypothesis was that
 aggressive driving worsens conditions for everyone else. The experiments
 disprove that hypothesis in the congested regime: see [Experiment 3](#experiment-3).
 
@@ -49,14 +49,14 @@ A vehicle *i* may change lanes if **all three** hold:
 
 If all three are satisfied, the change happens with probability `c`.
 
-**Symmetric rules** — both lanes use the same incentive (front gap too small).
+**Symmetric rules**: both lanes use the same incentive (front gap too small).
 
-**Asymmetric rules** — the right lane changes only when blocked; the left lane
+**Asymmetric rules**: the right lane changes only when blocked; the left lane
 may always change back. This models "keep right except to overtake"
 
 ### Aggressive drivers
 
-Aggressive drivers have `l_{o,back} = 0` — they ignore the back-gap safety
+Aggressive drivers have `l_{o,back} = 0`; they ignore the back-gap safety
 check when changing lanes. Non-aggressive drivers keep `l_{o,back} = 5`. The
 model is collision-free, so an aggressive lane change only forces the car behind
 to slow down. The implementation supports a heterogeneous mix: any fraction of
@@ -171,7 +171,7 @@ and `space_time.csv` is written with `time,lane,position,car_id` for diagramming
 All experiments: `9 km` highway, `5000` measured steps, `1000` warmup steps,
 `v_max = 5`, `b = 0.5`, `c = 1`.
 
-### Experiment 1 — symmetric rules (validation)
+### Experiment 1: symmetric rules (validation)
 
 Parameters: `l = v_i + 1`, `l_o = l`, `l_{o,back} = 5`, no aggressive drivers,
 symmetric rules. Results reproduce [[1]](#references) (Fig 3, Fig 5): peak flow
@@ -179,27 +179,27 @@ at density ≈ `0.08`; traffic splits evenly across both lanes.
 
 **Left:** Flow vs. density. **Right:** Lane-change rate vs. density.
 
-![Symmetric rules — flow and lane-change rate vs. density](./fig/repro-symmetric.png)
+![Symmetric rules: flow and lane-change rate vs. density](./fig/repro-symmetric.png)
 
-### Experiment 2 — asymmetric rules
+### Experiment 2: asymmetric rules
 
 Same parameters as Exp. 1 but with asymmetric rules. Lane-change rate ≈ `2×`
 higher than symmetric. Right-lane flow dominates the left lane, confirming that
-drivers stay right and use the left lane only for overtaking — visible in the
+drivers stay right and use the left lane only for overtaking, visible in the
 space–time diagram as a sparser left lane.
 
 **Left:** Flow vs. density (total + per lane). **Right:** Lane-change rate vs. density.
 
-![Asymmetric rules — flow and lane-change rate vs. density](./fig/repro-asym.png)
+![Asymmetric rules: flow and lane-change rate vs. density](./fig/repro-asym.png)
 
-### Experiment 3 — aggressive drivers
+### Experiment 3: aggressive drivers
 
 Asymmetric rules, `l = v_i + 1`, `l_o = l`; passive drivers `l_{o,back} = 5`,
 aggressive drivers `l_{o,back} = 0` (they ignore the car behind when changing).
 Sweep over `0%, 30%, 60%, 90%` aggressive.
 
 - Near the critical density (`≈ 0.08`), aggressive drivers **reduce** overall
-  flow — they cause stop-and-go waves by cutting in too close.
+  flow; they cause stop-and-go waves by cutting in too close.
 - At higher density (`ρ > 0.2`), aggressive drivers **increase** flow: passive
   drivers get stuck behind slower traffic waiting for a gap that never opens,
   while aggressive ones exploit small gaps and spread vehicles across both lanes.
